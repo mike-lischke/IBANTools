@@ -7,9 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		27A840B51A33442700B78076 /* abc2iban.h in Headers */ = {isa = PBXBuildFile; fileRef = 27A840B41A33442700B78076 /* abc2iban.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		27A840BB1A33442700B78076 /* abc2iban.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 27A840AF1A33442700B78076 /* abc2iban.framework */; };
-		27A840C21A33442700B78076 /* abc2ibanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27A840C11A33442700B78076 /* abc2ibanTests.swift */; };
+		27428E281A3DBBAF00DC3DB3 /* DERules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27428E271A3DBBAF00DC3DB3 /* DERules.swift */; };
+		278980681A4094F300C2495F /* de in Resources */ = {isa = PBXBuildFile; fileRef = 278980671A4094F300C2495F /* de */; };
+		27A840BB1A33442700B78076 /* IBANtools.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 27A840AF1A33442700B78076 /* IBANtools.framework */; };
+		27A840C21A33442700B78076 /* IBANtoolsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27A840C11A33442700B78076 /* IBANtoolsTests.swift */; };
+		27A840CC1A33443F00B78076 /* Converter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27A840CB1A33443F00B78076 /* Converter.swift */; };
+		27BB86871A3DCCA4005317B2 /* IBANtoolsDETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27BB86861A3DCCA4005317B2 /* IBANtoolsDETests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -18,17 +21,20 @@
 			containerPortal = 27A840A61A33442600B78076 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 27A840AE1A33442700B78076;
-			remoteInfo = abc2iban;
+			remoteInfo = IBANtools;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		27A840AF1A33442700B78076 /* abc2iban.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = abc2iban.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		27A840B31A33442700B78076 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		27A840B41A33442700B78076 /* abc2iban.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = abc2iban.h; sourceTree = "<group>"; };
-		27A840BA1A33442700B78076 /* abc2ibanTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = abc2ibanTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		27A840C01A33442700B78076 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		27A840C11A33442700B78076 /* abc2ibanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = abc2ibanTests.swift; sourceTree = "<group>"; };
+		27428E271A3DBBAF00DC3DB3 /* DERules.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = DERules.swift; path = Source/DERules.swift; sourceTree = SOURCE_ROOT; wrapsLines = 0; };
+		278980671A4094F300C2495F /* de */ = {isa = PBXFileReference; lastKnownFileType = folder; name = de; path = Resources/de; sourceTree = "<group>"; };
+		27A840AF1A33442700B78076 /* IBANtools.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = IBANtools.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		27A840B31A33442700B78076 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = Source/Info.plist; sourceTree = SOURCE_ROOT; };
+		27A840BA1A33442700B78076 /* IBANtoolsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IBANtoolsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		27A840C01A33442700B78076 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = Tests/Info.plist; sourceTree = SOURCE_ROOT; };
+		27A840C11A33442700B78076 /* IBANtoolsTests.swift */ = {isa = PBXFileReference; indentWidth = 4; lastKnownFileType = sourcecode.swift; name = IBANtoolsTests.swift; path = Tests/IBANtoolsTests.swift; sourceTree = SOURCE_ROOT; tabWidth = 4; wrapsLines = 0; };
+		27A840CB1A33443F00B78076 /* Converter.swift */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 4; lastKnownFileType = sourcecode.swift; name = Converter.swift; path = Source/Converter.swift; sourceTree = SOURCE_ROOT; tabWidth = 4; wrapsLines = 0; };
+		27BB86861A3DCCA4005317B2 /* IBANtoolsDETests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = IBANtoolsDETests.swift; path = Tests/IBANtoolsDETests.swift; sourceTree = SOURCE_ROOT; wrapsLines = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -43,18 +49,27 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				27A840BB1A33442700B78076 /* abc2iban.framework in Frameworks */,
+				27A840BB1A33442700B78076 /* IBANtools.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		278980661A4094C200C2495F /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				278980671A4094F300C2495F /* de */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
 		27A840A51A33442600B78076 = {
 			isa = PBXGroup;
 			children = (
-				27A840B11A33442700B78076 /* abc2iban */,
-				27A840BE1A33442700B78076 /* abc2ibanTests */,
+				278980661A4094C200C2495F /* Resources */,
+				27A840B11A33442700B78076 /* Source */,
+				27A840BE1A33442700B78076 /* Tests */,
 				27A840B01A33442700B78076 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -62,19 +77,21 @@
 		27A840B01A33442700B78076 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				27A840AF1A33442700B78076 /* abc2iban.framework */,
-				27A840BA1A33442700B78076 /* abc2ibanTests.xctest */,
+				27A840AF1A33442700B78076 /* IBANtools.framework */,
+				27A840BA1A33442700B78076 /* IBANtoolsTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		27A840B11A33442700B78076 /* abc2iban */ = {
+		27A840B11A33442700B78076 /* Source */ = {
 			isa = PBXGroup;
 			children = (
-				27A840B41A33442700B78076 /* abc2iban.h */,
 				27A840B21A33442700B78076 /* Supporting Files */,
+				27A840CB1A33443F00B78076 /* Converter.swift */,
+				27428E271A3DBBAF00DC3DB3 /* DERules.swift */,
 			);
-			path = abc2iban;
+			name = Source;
+			path = IBANtools;
 			sourceTree = "<group>";
 		};
 		27A840B21A33442700B78076 /* Supporting Files */ = {
@@ -85,13 +102,15 @@
 			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
-		27A840BE1A33442700B78076 /* abc2ibanTests */ = {
+		27A840BE1A33442700B78076 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
-				27A840C11A33442700B78076 /* abc2ibanTests.swift */,
 				27A840BF1A33442700B78076 /* Supporting Files */,
+				27A840C11A33442700B78076 /* IBANtoolsTests.swift */,
+				27BB86861A3DCCA4005317B2 /* IBANtoolsDETests.swift */,
 			);
-			path = abc2ibanTests;
+			name = Tests;
+			path = IBANtoolsTests;
 			sourceTree = "<group>";
 		};
 		27A840BF1A33442700B78076 /* Supporting Files */ = {
@@ -109,16 +128,15 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				27A840B51A33442700B78076 /* abc2iban.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		27A840AE1A33442700B78076 /* abc2iban */ = {
+		27A840AE1A33442700B78076 /* IBANtools */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 27A840C51A33442700B78076 /* Build configuration list for PBXNativeTarget "abc2iban" */;
+			buildConfigurationList = 27A840C51A33442700B78076 /* Build configuration list for PBXNativeTarget "IBANtools" */;
 			buildPhases = (
 				27A840AA1A33442700B78076 /* Sources */,
 				27A840AB1A33442700B78076 /* Frameworks */,
@@ -129,14 +147,14 @@
 			);
 			dependencies = (
 			);
-			name = abc2iban;
-			productName = abc2iban;
-			productReference = 27A840AF1A33442700B78076 /* abc2iban.framework */;
+			name = IBANtools;
+			productName = IBANtools;
+			productReference = 27A840AF1A33442700B78076 /* IBANtools.framework */;
 			productType = "com.apple.product-type.framework";
 		};
-		27A840B91A33442700B78076 /* abc2ibanTests */ = {
+		27A840B91A33442700B78076 /* IBANtoolsTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 27A840C81A33442700B78076 /* Build configuration list for PBXNativeTarget "abc2ibanTests" */;
+			buildConfigurationList = 27A840C81A33442700B78076 /* Build configuration list for PBXNativeTarget "IBANtoolsTests" */;
 			buildPhases = (
 				27A840B61A33442700B78076 /* Sources */,
 				27A840B71A33442700B78076 /* Frameworks */,
@@ -147,9 +165,9 @@
 			dependencies = (
 				27A840BD1A33442700B78076 /* PBXTargetDependency */,
 			);
-			name = abc2ibanTests;
-			productName = abc2ibanTests;
-			productReference = 27A840BA1A33442700B78076 /* abc2ibanTests.xctest */;
+			name = IBANtoolsTests;
+			productName = IBANtoolsTests;
+			productReference = 27A840BA1A33442700B78076 /* IBANtoolsTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -169,7 +187,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 27A840A91A33442600B78076 /* Build configuration list for PBXProject "abc2iban" */;
+			buildConfigurationList = 27A840A91A33442600B78076 /* Build configuration list for PBXProject "IBANtools" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
@@ -181,8 +199,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				27A840AE1A33442700B78076 /* abc2iban */,
-				27A840B91A33442700B78076 /* abc2ibanTests */,
+				27A840AE1A33442700B78076 /* IBANtools */,
+				27A840B91A33442700B78076 /* IBANtoolsTests */,
 			);
 		};
 /* End PBXProject section */
@@ -192,6 +210,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				278980681A4094F300C2495F /* de in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -209,6 +228,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				27428E281A3DBBAF00DC3DB3 /* DERules.swift in Sources */,
+				27A840CC1A33443F00B78076 /* Converter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -216,7 +237,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				27A840C21A33442700B78076 /* abc2ibanTests.swift in Sources */,
+				27BB86871A3DCCA4005317B2 /* IBANtoolsDETests.swift in Sources */,
+				27A840C21A33442700B78076 /* IBANtoolsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -225,7 +247,7 @@
 /* Begin PBXTargetDependency section */
 		27A840BD1A33442700B78076 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 27A840AE1A33442700B78076 /* abc2iban */;
+			target = 27A840AE1A33442700B78076 /* IBANtools */;
 			targetProxy = 27A840BC1A33442700B78076 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -315,33 +337,40 @@
 		27A840C61A33442700B78076 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				FRAMEWORK_VERSION = A;
-				INFOPLIST_FILE = abc2iban/Info.plist;
+				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
+				GCC_WARN_UNKNOWN_PRAGMAS = YES;
+				INFOPLIST_FILE = Source/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/Frameworks";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = IBANtools;
 				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
 		};
 		27A840C71A33442700B78076 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				FRAMEWORK_VERSION = A;
-				INFOPLIST_FILE = abc2iban/Info.plist;
+				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
+				GCC_WARN_UNKNOWN_PRAGMAS = YES;
+				INFOPLIST_FILE = Source/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/Frameworks";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = IBANtools;
 				SKIP_INSTALL = YES;
 			};
 			name = Release;
@@ -358,9 +387,9 @@
 					"DEBUG=1",
 					"$(inherited)",
 				);
-				INFOPLIST_FILE = abc2ibanTests/Info.plist;
+				INFOPLIST_FILE = Tests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = IBANtoolsTests;
 			};
 			name = Debug;
 		};
@@ -372,16 +401,16 @@
 					"$(DEVELOPER_FRAMEWORKS_DIR)",
 					"$(inherited)",
 				);
-				INFOPLIST_FILE = abc2ibanTests/Info.plist;
+				INFOPLIST_FILE = Tests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = IBANtoolsTests;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		27A840A91A33442600B78076 /* Build configuration list for PBXProject "abc2iban" */ = {
+		27A840A91A33442600B78076 /* Build configuration list for PBXProject "IBANtools" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				27A840C31A33442700B78076 /* Debug */,
@@ -390,21 +419,23 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		27A840C51A33442700B78076 /* Build configuration list for PBXNativeTarget "abc2iban" */ = {
+		27A840C51A33442700B78076 /* Build configuration list for PBXNativeTarget "IBANtools" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				27A840C61A33442700B78076 /* Debug */,
 				27A840C71A33442700B78076 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
-		27A840C81A33442700B78076 /* Build configuration list for PBXNativeTarget "abc2ibanTests" */ = {
+		27A840C81A33442700B78076 /* Build configuration list for PBXNativeTarget "IBANtoolsTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				27A840C91A33442700B78076 /* Debug */,
 				27A840CA1A33442700B78076 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

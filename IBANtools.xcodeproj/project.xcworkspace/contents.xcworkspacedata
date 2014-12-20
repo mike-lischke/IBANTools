@@ -2,6 +2,6 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "self:abc2iban.xcodeproj">
+      location = "self:IBANtools.xcodeproj">
    </FileRef>
 </Workspace>
