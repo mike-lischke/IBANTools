@@ -128,15 +128,14 @@ internal class DERules : IBANRules {
     return "";
   }
 
-  override class func convertToIBAN(inout account: String, inout _ bankCode: String) -> String? {
-    let bank = bankCode.toInt();
+  override class func convertToIBAN(inout account: String, inout _ bankCode: String) -> (String, IBANToolsResult) {
     var rule = 0;
     var version = 0;
-    if bank != nil {
-      if let institute = Static.institutes[bank!] {
+    if let bank = bankCode.toInt() {
+      if let institute = Static.institutes[bank] {
         // Replace bank code by new one if there's one.
         if institute.isDeleted {
-          return "";
+          return ("", .IBANToolsBadBank);
         }
 
         if institute.replacement > 0 {
@@ -148,30 +147,16 @@ internal class DERules : IBANRules {
       }
     }
 
-    switch bankCode {
-    case "720207001":
-      return rule2(&account, version);
+    switch rule {
+    case 0:
+      return ("", .IBANToolsDefaultIBAN); // Default computation.
 
-    case "10010424", "20010424", "36010424", "50010424", "51010400", "51010800", "55010400",
-      "55010424", "55010625", "60010424", "70010424", "86010424": // Aareal Bank AG
-      return rule3(&account, version);
-
-    case "10050000", "10050005", "10050006", "10050007":
-      return rule4(&account, version);
+    case 1: // This bank code is not used in normal payments.
+      return ("", .IBANToolsBadBank);
 
     default:
-      break;
+      return ("", .IBANToolsNoMethod);
     }
-
-    return nil;
-  }
-
-  private class func rule0(inout account: String, _ version: Int) -> String? {
-    return nil; // Use default rule.
-  }
-
-  private class func rule1(inout account: String, _ version: Int) -> String? {
-    return ""; // Account or bank code not used in payments (anymore).
   }
 
   // Augsburger Aktienbank

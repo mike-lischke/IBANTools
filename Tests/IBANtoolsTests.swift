@@ -173,25 +173,24 @@ class IBANtoolsTests: XCTestCase {
     ];
 
     func testDefault() {
-        XCTAssertEqual(IBANtools.convertToIBAN("", bankCode: "12345", countryCode: "xy"), "", "Default 1");
-        XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "", countryCode: "xy"), "", "Default 2");
-        XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "12345", countryCode: ""), "", "Default 3");
-        XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "12345", countryCode: "µ"), "", "Default 4");
+        XCTAssertEqual(IBANtools.convertToIBAN("", bankCode: "12345", countryCode: "xy").0, "", "Default 1");
+        XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "", countryCode: "xy").0, "", "Default 2");
+        XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "12345", countryCode: "").0, "", "Default 3");
+        XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "12345", countryCode: "µ").0, "", "Default 4");
 
         for entry in testData {
             var accountNumber = entry.account;
             var bankCodeNumber = entry.bank;
-            let details: CountryDetails? = countryData[entry.code];
-            if (details != nil) {
-                if accountNumber.utf16Count < details!.accountLength {
-                    accountNumber = String(count: details!.accountLength - accountNumber.utf16Count, repeatedValue: "0" as Character) + accountNumber;
+            if let details = countryData[entry.code] {
+                if accountNumber.utf16Count < details.accountLength {
+                    accountNumber = String(count: details.accountLength - accountNumber.utf16Count, repeatedValue: "0" as Character) + accountNumber;
                 }
-                if bankCodeNumber.utf16Count < details!.bankCodeLength {
-                    bankCodeNumber = String(count: details!.bankCodeLength - bankCodeNumber.utf16Count, repeatedValue: "0" as Character) + bankCodeNumber;
+                if bankCodeNumber.utf16Count < details.bankCodeLength {
+                    bankCodeNumber = String(count: details.bankCodeLength - bankCodeNumber.utf16Count, repeatedValue: "0" as Character) + bankCodeNumber;
                 }
             }
             let expected = entry.code + entry.checksum + bankCodeNumber + accountNumber;
-            XCTAssertEqual(IBANtools.convertToIBAN(entry.account, bankCode: entry.bank, countryCode: entry.code), expected, "");
+            XCTAssertEqual(IBANtools.convertToIBAN(entry.account, bankCode: entry.bank, countryCode: entry.code).0, expected, "");
         }
 
     }

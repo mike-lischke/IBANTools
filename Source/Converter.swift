@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2014, Mike Lischke. All rights reserved.
+ * Copyright (c) 2014, 2015, Mike Lischke. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -22,19 +22,33 @@ import Foundation
 let A: unichar = 65; // "A"
 let Z: unichar = 90; // "Z"
 
+public enum IBANToolsResult {
+    case IBANToolsDefaultIBAN // The default rule for generating an IBAN was used.
+    case IBANToolsOK          // Conversion/check was ok.
+
+    // All other results are returned by country specific code only.
+    case IBANToolsBadAccount  // The account was rejected (e.g. wrong checksum).
+    case IBANToolsBadBank     // The bank code was rejected (e.g. deleted bank entry).
+    case IBANToolsNoMethod    // Couldn't find any conversion/checksum method.
+    case IBANToolsNoConv      // No IBAN conversion by intention.
+    case IBANToolsNoChecksum  // No checksum computation/check by intention for bank accounts (always valid).
+    case IBANToolsWrongValue  // One of the given parameters was wrong (0 for account/bank,
+                              // no 2 letter country code, invalid chars etc.).
+}
+
 // Country specific rules.
 // Note: @objc and the NSObject base class are necessary to make dynamic instantiation working.
 @objc(IBANRules)
 internal class IBANRules : NSObject {
-    class func convertToIBAN(inout account: String, inout _ bankCode: String) -> String? {
-        return nil;
+    class func convertToIBAN(inout account: String, inout _ bankCode: String) -> (String, IBANToolsResult) {
+        return ("", .IBANToolsNoConv);
     }
 }
 
 @objc(AccountCheck)
 internal class AccountCheck : NSObject {
-    class func isValidAccount(account: String, _ bankCode: String) -> Bool {
-        return false;
+    class func isValidAccount(account: String, _ bankCode: String) -> (Bool, IBANToolsResult) {
+        return (false, .IBANToolsNoMethod);
     }
 }
 
@@ -52,21 +66,20 @@ public class IBANtools {
      * Validates the given bank account number. Returns true if the number is valid, otherwise false.
      * This check involves institute's specific checksum rules.
      */
-    public class func isValidAccount(account: String, bankCode: String, countryCode: String) -> Bool {
+    public class func isValidAccount(account: String, bankCode: String, countryCode: String) -> (Bool, IBANToolsResult) {
         var accountNumber = account.stringByReplacingOccurrencesOfString(" ", withString: "");
         var bankCodeNumber = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
         if accountNumber.utf16Count == 0 || bankCodeNumber.utf16Count == 0 || countryCode.utf16Count != 2 {
-            return false;
+            return (false, .IBANToolsWrongValue);
         }
 
         if containsInvalidChars(accountNumber) || containsInvalidChars(bankCodeNumber) {
-            return false;
+            return (false, .IBANToolsWrongValue);
         }
 
         let countryCodeUpper = countryCode.uppercaseString;
 
-        let details: CountryDetails? = countryData[countryCodeUpper];
-        if details != nil {
+        if let details = countryData[countryCodeUpper] {
             let clazz: AnyClass! = NSClassFromString(countryCodeUpper + "AccountCheck");
             if clazz != nil {
                 let rulesClass = clazz as AccountCheck.Type;
@@ -74,7 +87,7 @@ public class IBANtools {
             }
         }
 
-        return true; // For any country for which we have no checksum check assume everything is ok.
+        return (true, .IBANToolsOK); // For any country for which we have no checksum check assume everything is ok.
     }
 
     /**
@@ -84,26 +97,30 @@ public class IBANtools {
     * Notes:
     *   - Values can contain space chars. They are automatically removed.
     */
-    public class func convertToIBAN(account: String, bankCode: String, countryCode: String) -> String {
+    public class func convertToIBAN(account: String, bankCode: String, countryCode: String) -> (String, IBANToolsResult) {
+
+        let accountResult = isValidAccount(account, bankCode: bankCode, countryCode: countryCode)
+        if !accountResult.0 {
+            return ("", accountResult.1);
+        }
 
         var accountNumber = account.stringByReplacingOccurrencesOfString(" ", withString: "");
         var bankCodeNumber = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
         if accountNumber.utf16Count == 0 || bankCodeNumber.utf16Count == 0 || countryCode.utf16Count != 2 {
-            return "";
+            return ("", .IBANToolsWrongValue);
         }
 
         if containsInvalidChars(accountNumber) || containsInvalidChars(bankCodeNumber) {
-            return "";
+            return ("", .IBANToolsWrongValue);
         }
 
         let countryCodeUpper = countryCode.uppercaseString;
 
-        var result: String?;
+        var result: (String, IBANToolsResult) = ("", .IBANToolsDefaultIBAN);
 
         // If we have country information call the country converter and then ensure
         // bank code and account number have the desired length.
-        let details: CountryDetails? = countryData[countryCodeUpper];
-        if details != nil {
+        if let details = countryData[countryCodeUpper] {
             let clazz: AnyClass! = NSClassFromString(countryCodeUpper + "Rules");
             if clazz != nil {
                 let rulesClass = clazz as IBANRules.Type;
@@ -112,23 +129,23 @@ public class IBANtools {
 
             // Do length check *after* the country specific rules. They might rely on the exact
             // account number (e.g. for special accounts).
-            if accountNumber.utf16Count < details!.accountLength {
-                accountNumber = String(count: details!.accountLength - accountNumber.utf16Count, repeatedValue: "0" as Character) + accountNumber;
+            if accountNumber.utf16Count < details.accountLength {
+                accountNumber = String(count: details.accountLength - accountNumber.utf16Count, repeatedValue: "0" as Character) + accountNumber;
             }
-            if bankCodeNumber.utf16Count < details!.bankCodeLength {
-                bankCodeNumber = String(count: details!.bankCodeLength - bankCodeNumber.utf16Count, repeatedValue: "0" as Character) + bankCodeNumber;
+            if bankCodeNumber.utf16Count < details.bankCodeLength {
+                bankCodeNumber = String(count: details.bankCodeLength - bankCodeNumber.utf16Count, repeatedValue: "0" as Character) + bankCodeNumber;
             }
         }
 
-        if (result == nil) {
+        if result.1 == .IBANToolsDefaultIBAN {
             var checksum = String(computeChecksum(countryCodeUpper + "00" + bankCodeNumber.uppercaseString + accountNumber.uppercaseString));
             if checksum.utf16Count < 2 {
                 checksum = "0" + checksum;
             }
 
-            return countryCodeUpper + checksum + bankCodeNumber + accountNumber;
+            result.0 = countryCodeUpper + checksum + bankCodeNumber + accountNumber;
         }
-        return result!;
+        return result;
     }
 
     private class func mod97(s: String) -> Int {
@@ -173,71 +190,60 @@ public class IBANtools {
     }
 }
 
-public struct CountryDetails {
-    public var country: String;
-    public var bankCodeLength: Int;
-    public var accountLength: Int;
-    init (_ name: String, _ bankCode: Int, _ account: Int) {
-        country = name;
-        bankCodeLength = bankCode;
-        accountLength = account;
-    }
-}
-
 // Public only for test cases.
-public let countryData: [String: CountryDetails] = [
-    "AL": CountryDetails("Albania", 8, 16),
-    "AD": CountryDetails("Andorra", 8, 12),
-    "AT": CountryDetails("Austria", 5, 1),
-    "BE": CountryDetails("Belgium", 3, 9),
-    "BA": CountryDetails("Bosnia and Herzegovina", 6, 10),
-    "BG": CountryDetails("Bulgaria", 8, 10),
-    "HR": CountryDetails("Croatia", 7, 10),
-    "CY": CountryDetails("Cyprus", 8, 16),
-    "CZ": CountryDetails("Czech Republic", 4, 16),
-    "DK": CountryDetails("Denmark", 4, 10),
-    "EE": CountryDetails("Estonia", 2, 14),
-    "FO": CountryDetails("Faroe Islands", 4, 10),
-    "FI": CountryDetails("Finland", 6, 8),
-    "FR": CountryDetails("France", 10, 13),
-    "GE": CountryDetails("Georgia", 2, 16),
-    "DE": CountryDetails("Germany", 8, 10),
-    "GI": CountryDetails("Gibraltar", 4, 15),
-    "GR": CountryDetails("Greece", 7, 16),
-    "GL": CountryDetails("Greenland", 4, 10),
-    "HU": CountryDetails("Hungary", 7, 17),
-    "IS": CountryDetails("Iceland", 4, 18),
-    "IE": CountryDetails("Ireland", 10, 8),
-    "IL": CountryDetails("Israel", 6, 13),
-    "IT": CountryDetails("Italy", 11, 12),
-    "KZ": CountryDetails("Kazakhstan", 3, 13),
-    "KW": CountryDetails("Kuwait", 4, 22),
-    "LV": CountryDetails("Latvia", 4, 13),
-    "LB": CountryDetails("Lebanon", 4, 20),
-    "LI": CountryDetails("Liechtenstein", 5, 12),
-    "LT": CountryDetails("Lithuania", 5, 11),
-    "LU": CountryDetails("Luxembourg", 3, 13),
-    "MK": CountryDetails("Macedonia, Former Yugoslav Republic of", 3, 12),
-    "MT": CountryDetails("Malta", 9, 18),
-    "MR": CountryDetails("Mauritania", 10, 13),
-    "MU": CountryDetails("Mauritius", 8, 18),
-    "MC": CountryDetails("Monaco", 10, 13),
-    "ME": CountryDetails("Montenegro", 3, 15),
-    "NL": CountryDetails("Netherlands", 4, 10),
-    "NO": CountryDetails("Norway", 4, 7),
-    "PL": CountryDetails("Poland", 8, 16),
-    "PT": CountryDetails("Portugal", 8, 13),
-    "RO": CountryDetails("Romania", 4, 16),
-    "SM": CountryDetails("San Marino", 11, 12),
-    "SA": CountryDetails("Saudi Arabia", 2, 18),
-    "RS": CountryDetails("Serbia", 3, 15),
-    "SK": CountryDetails("Slovak Republic", 4, 16),
-    "SI": CountryDetails("Slovenia", 4, 10),
-    "ES": CountryDetails("Spain", 8, 12),
-    "SE": CountryDetails("Sweden", 3, 17),
-    "CH": CountryDetails("Switzerland", 5, 12),
-    "TN": CountryDetails("Tunisia", 5, 15),
-    "TR": CountryDetails("Turkey", 5, 17),
-    "GB": CountryDetails("United Kingdom", 10, 8)
+public let countryData: [String: (country: String, bankCodeLength: Int, accountLength: Int)] = [
+    "AL": ("Albania", 8, 16),
+    "AD": ("Andorra", 8, 12),
+    "AT": ("Austria", 5, 1),
+    "BE": ("Belgium", 3, 9),
+    "BA": ("Bosnia and Herzegovina", 6, 10),
+    "BG": ("Bulgaria", 8, 10),
+    "HR": ("Croatia", 7, 10),
+    "CY": ("Cyprus", 8, 16),
+    "CZ": ("Czech Republic", 4, 16),
+    "DK": ("Denmark", 4, 10),
+    "EE": ("Estonia", 2, 14),
+    "FO": ("Faroe Islands", 4, 10),
+    "FI": ("Finland", 6, 8),
+    "FR": ("France", 10, 13),
+    "GE": ("Georgia", 2, 16),
+    "DE": ("Germany", 8, 10),
+    "GI": ("Gibraltar", 4, 15),
+    "GR": ("Greece", 7, 16),
+    "GL": ("Greenland", 4, 10),
+    "HU": ("Hungary", 7, 17),
+    "IS": ("Iceland", 4, 18),
+    "IE": ("Ireland", 10, 8),
+    "IL": ("Israel", 6, 13),
+    "IT": ("Italy", 11, 12),
+    "KZ": ("Kazakhstan", 3, 13),
+    "KW": ("Kuwait", 4, 22),
+    "LV": ("Latvia", 4, 13),
+    "LB": ("Lebanon", 4, 20),
+    "LI": ("Liechtenstein", 5, 12),
+    "LT": ("Lithuania", 5, 11),
+    "LU": ("Luxembourg", 3, 13),
+    "MK": ("Macedonia, Former Yugoslav Republic of", 3, 12),
+    "MT": ("Malta", 9, 18),
+    "MR": ("Mauritania", 10, 13),
+    "MU": ("Mauritius", 8, 18),
+    "MC": ("Monaco", 10, 13),
+    "ME": ("Montenegro", 3, 15),
+    "NL": ("Netherlands", 4, 10),
+    "NO": ("Norway", 4, 7),
+    "PL": ("Poland", 8, 16),
+    "PT": ("Portugal", 8, 13),
+    "RO": ("Romania", 4, 16),
+    "SM": ("San Marino", 11, 12),
+    "SA": ("Saudi Arabia", 2, 18),
+    "RS": ("Serbia", 3, 15),
+    "SK": ("Slovak Republic", 4, 16),
+    "SI": ("Slovenia", 4, 10),
+    "ES": ("Spain", 8, 12),
+    "SE": ("Sweden", 3, 17),
+    "CH": ("Switzerland", 5, 12),
+    "TN": ("Tunisia", 5, 15),
+    "TR": ("Turkey", 5, 17),
+    "GB": ("United Kingdom", 10, 8)
 ];
 

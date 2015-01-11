@@ -30,48 +30,51 @@ class IBANtoolsDETests: XCTestCase {
         super.tearDown()
     }
 
-  func testDefault() {
-    XCTAssertEqual(IBANtools.convertToIBAN("532013018", bankCode: "100 900 44", countryCode: "DE"), "DE10100900440532013018", "Default 1");
-
-    // Bank codes with replacements.
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "100 601 98", countryCode: "DE"), "DE70370601930000012345", "Default 1");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "   1  3 0 6 1 0 8 8   ", countryCode: "DE"), "DE23130610780000012345", "Default 1");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "82060800", countryCode: "DE"), "DE15520604100000012345", "Default 1");
+  func testAndCompare(account: String, _ bank: String, _ country: String, _ expected: (String, IBANToolsResult)) -> Bool {
+    let result = IBANtools.convertToIBAN(account, bankCode: bank, countryCode: country);
+    return result.0 == expected.0 && result.1 == expected.1;
   }
 
-  func testRule2() {
-    XCTAssertEqual(IBANtools.convertToIBAN("532013018", bankCode: "72020700", countryCode: "dE"), "DE09720207000532013018", "1");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "720207001", countryCode: "de"), "DE637202070010000012345", "2");
-    XCTAssertEqual(IBANtools.convertToIBAN("12645", bankCode: "720207001", countryCode: "de"), "", "3");
-    XCTAssertEqual(IBANtools.convertToIBAN("12865", bankCode: "720207001", countryCode: "de"), "", "4");
-  }
+  func testIBANs() {
 
-  func testRule3() {
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "10010424", countryCode: "de"), "DE77100104240000012345", "1");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "20010424", countryCode: "de"), "DE21200104240000012345", "2");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "36010424", countryCode: "de"), "DE09360104240000012345", "3");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "50010424", countryCode: "de"), "DE47500104240000012345", "4");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "51010400", countryCode: "de"), "DE55510104000000012345", "5");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "51010800", countryCode: "de"), "DE87510108000000012345", "6");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "55010400", countryCode: "de"), "DE52550104000000012345", "7");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "55010424", countryCode: "de"), "DE19550104240000012345", "8");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "55010625", countryCode: "de"), "DE70550106250000012345", "9");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "60010424", countryCode: "de"), "DE88600104240000012345", "10");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "70010424", countryCode: "de"), "DE32700104240000012345", "11");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "86010424", countryCode: "de"), "DE20860104240000012345", "12");
+    // Rule 0000 is the default rule which is tested in the generic IBAN tests.
 
-    XCTAssertEqual(IBANtools.convertToIBAN("6161604670", bankCode: "10010424", countryCode: "de"), "", "1");
-    XCTAssertEqual(IBANtools.convertToIBAN("6161604670", bankCode: "20010424", countryCode: "de"), "", "2");
-    XCTAssertEqual(IBANtools.convertToIBAN("6161604670", bankCode: "36010424", countryCode: "de"), "", "3");
-    XCTAssertEqual(IBANtools.convertToIBAN("6161604670", bankCode: "50010424", countryCode: "de"), "", "4");
-    XCTAssertEqual(IBANtools.convertToIBAN("6161604670", bankCode: "51010400", countryCode: "de"), "", "5");
-    XCTAssertEqual(IBANtools.convertToIBAN("6161604670", bankCode: "51010800", countryCode: "de"), "", "6");
-    XCTAssertEqual(IBANtools.convertToIBAN("6161604670", bankCode: "55010400", countryCode: "de"), "", "7");
-    XCTAssertEqual(IBANtools.convertToIBAN("6161604670", bankCode: "55010424", countryCode: "de"), "", "8");
-    XCTAssertEqual(IBANtools.convertToIBAN("6161604670", bankCode: "55010625", countryCode: "de"), "", "9");
-    XCTAssertEqual(IBANtools.convertToIBAN("6161604670", bankCode: "60010424", countryCode: "de"), "", "10");
-    XCTAssertEqual(IBANtools.convertToIBAN("6161604670", bankCode: "70010424", countryCode: "de"), "", "11");
-    XCTAssertEqual(IBANtools.convertToIBAN("6161604670", bankCode: "86010424", countryCode: "de"), "", "12");
+    // Rule 0001.
+    XCTAssert(testAndCompare("532013018", "10050005", "dE", ("", .IBANToolsBadBank)), "0001.1");
+    XCTAssert(testAndCompare("532013018", "25451450", "dE", ("", .IBANToolsBadBank)), "0001.2");
+/*
+    // Rule 0002.
+    XCTAssert(testAndCompare("532013018", "72020700", "dE", ("DE09720207000532013018", .IBANToolsOK)), "1");
+    XCTAssert(testAndCompare("12345", "720207001", "de", ("DE637202070010000012345", .IBANToolsBadBank)), "2");
+    XCTAssert(testAndCompare("12645", "720207001", "de", ( "", .IBANToolsBadBank)), "3");
+    XCTAssert(testAndCompare("12865", "720207001", "de", ("", .IBANToolsBadBank)), "4");
+
+    XCTAssert(testAndCompare("12345", "10010424", "de", ("DE77100104240000012345", .IBANToolsBadBank)), "1");
+    XCTAssert(testAndCompare("12345", "20010424", "de", ("DE21200104240000012345", .IBANToolsBadBank)), "2");
+    XCTAssert(testAndCompare("12345", "36010424", "de", ("DE09360104240000012345", .IBANToolsBadBank)), "3");
+    XCTAssert(testAndCompare("12345", "50010424", "de", ("DE47500104240000012345", .IBANToolsBadBank)), "4");
+    XCTAssert(testAndCompare("12345", "51010400", "de", ("DE55510104000000012345", .IBANToolsBadBank)), "5");
+    XCTAssert(testAndCompare("12345", "51010800", "de", ("DE87510108000000012345", .IBANToolsBadBank)), "6");
+    XCTAssert(testAndCompare("12345", "55010400", "de", ("DE52550104000000012345", .IBANToolsBadBank)), "7");
+    XCTAssert(testAndCompare("12345", "55010424", "de", ("DE19550104240000012345", .IBANToolsBadBank)), "8");
+    XCTAssert(testAndCompare("12345", "55010625", "de", ("DE70550106250000012345", .IBANToolsBadBank)), "9");
+    XCTAssert(testAndCompare("12345", "60010424", "de", ("DE88600104240000012345", .IBANToolsBadBank)), "10");
+    XCTAssert(testAndCompare("12345", "70010424", "de", ("DE32700104240000012345", .IBANToolsBadBank)), "11");
+    XCTAssert(testAndCompare("12345", "86010424", "de", ("DE20860104240000012345", .IBANToolsBadBank)), "12");
+
+    XCTAssert(testAndCompare("6161604670", "10010424", "de", ("", .IBANToolsBadBank)), "1");
+    XCTAssert(testAndCompare("6161604670", "20010424", "de", ("", .IBANToolsBadBank)), "2");
+    XCTAssert(testAndCompare("6161604670", "36010424", "de", ("", .IBANToolsBadBank)), "3");
+    XCTAssert(testAndCompare("6161604670", "50010424", "de", ("", .IBANToolsBadBank)), "4");
+    XCTAssert(testAndCompare("6161604670", "51010400", "de", ("", .IBANToolsBadBank)), "5");
+    XCTAssert(testAndCompare("6161604670", "51010800", "de", ("", .IBANToolsBadBank)), "6");
+    XCTAssert(testAndCompare("6161604670", "55010400", "de", ("", .IBANToolsBadBank)), "7");
+    XCTAssert(testAndCompare("6161604670", "55010424", "de", ("", .IBANToolsBadBank)), "8");
+    XCTAssert(testAndCompare("6161604670", "55010625", "de", ("", .IBANToolsBadBank)), "9");
+    XCTAssert(testAndCompare("6161604670", "60010424", "de", ("", .IBANToolsBadBank)), "10");
+    XCTAssert(testAndCompare("6161604670", "70010424", "de", ("", .IBANToolsBadBank)), "11");
+    XCTAssert(testAndCompare("6161604670", "86010424", "de", ("", .IBANToolsBadBank)), "12");
+*/
   }
 
   func testRule4() {
