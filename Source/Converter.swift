@@ -1,9 +1,21 @@
-//
-//  Converter.swift
-//  iban-tools
-//
-//  Created by Mike Lischke on 06.12.14.
-//  Copyright (c) 2014 mike.lischke. All rights reserved.
+/**
+ * Copyright (c) 2014, Mike Lischke. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; version 2 of the
+ * License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301  USA
+ */
 
 import Foundation
 
@@ -13,9 +25,16 @@ let Z: unichar = 90; // "Z"
 // Country specific rules.
 // Note: @objc and the NSObject base class are necessary to make dynamic instantiation working.
 @objc(IBANRules)
-class IBANRules : NSObject {
+internal class IBANRules : NSObject {
     class func convertToIBAN(inout account: String, inout _ bankCode: String) -> String? {
         return nil;
+    }
+}
+
+@objc(AccountCheck)
+internal class AccountCheck : NSObject {
+    class func isValidAccount(account: String, _ bankCode: String) -> Bool {
+        return false;
     }
 }
 
@@ -25,8 +44,37 @@ public class IBANtools {
     /**
      * Validates the given IBAN. Returns true if the number is valid, otherwise false.
      */
-    public class func checkIBAN(iban: String) -> Bool {
+    public class func isValidIBAN(iban: String) -> Bool {
         return computeChecksum(iban) == 97;
+    }
+
+    /**
+     * Validates the given bank account number. Returns true if the number is valid, otherwise false.
+     * This check involves institute's specific checksum rules.
+     */
+    public class func isValidAccount(account: String, bankCode: String, countryCode: String) -> Bool {
+        var accountNumber = account.stringByReplacingOccurrencesOfString(" ", withString: "");
+        var bankCodeNumber = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
+        if accountNumber.utf16Count == 0 || bankCodeNumber.utf16Count == 0 || countryCode.utf16Count != 2 {
+            return false;
+        }
+
+        if containsInvalidChars(accountNumber) || containsInvalidChars(bankCodeNumber) {
+            return false;
+        }
+
+        let countryCodeUpper = countryCode.uppercaseString;
+
+        let details: CountryDetails? = countryData[countryCodeUpper];
+        if details != nil {
+            let clazz: AnyClass! = NSClassFromString(countryCodeUpper + "AccountCheck");
+            if clazz != nil {
+                let rulesClass = clazz as AccountCheck.Type;
+                return rulesClass.isValidAccount(accountNumber, bankCodeNumber);
+            }
+        }
+
+        return true; // For any country for which we have no checksum check assume everything is ok.
     }
 
     /**
@@ -41,6 +89,10 @@ public class IBANtools {
         var accountNumber = account.stringByReplacingOccurrencesOfString(" ", withString: "");
         var bankCodeNumber = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
         if accountNumber.utf16Count == 0 || bankCodeNumber.utf16Count == 0 || countryCode.utf16Count != 2 {
+            return "";
+        }
+
+        if containsInvalidChars(accountNumber) || containsInvalidChars(bankCodeNumber) {
             return "";
         }
 
@@ -105,6 +157,19 @@ public class IBANtools {
         }
         work += checksum;
         return 98 - mod97(work);
+    }
+
+    /**
+     * Checks if the input string only consists of letters and numbers.
+     * Everything else is considered wrong.
+     */
+    private class func containsInvalidChars(input: String) -> Bool {
+        for c in input {
+            if c < "0" || (c > "9" && c < "A") || (c > "Z" && c < "a") || c > "z" {
+                return true;
+            }
+        }
+        return false;
     }
 }
 

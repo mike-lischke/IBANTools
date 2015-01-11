@@ -1,17 +1,29 @@
-//
-//  DERules.swift
-//  IBANtools
-//
-//  Created by Mike Lischke on 14.12.14.
-//  Copyright (c) 2014 Mike Lischke. All rights reserved.
-//
+/**
+ * Copyright (c) 2014, 2015, Mike Lischke. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; version 2 of the
+ * License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301  USA
+ */
 
 import Foundation
+import AppKit
 
-// BIAN conversion rules specific to Germany.
+// IBAN conversion rules specific to Germany.
 
 @objc(DERules)
-private class DERules : IBANRules {
+internal class DERules : IBANRules {
 
   private struct BankEntry {         // Details for a given bank code.
     var name: String = "";
@@ -31,18 +43,26 @@ private class DERules : IBANRules {
   }
 
   override class func initialize() {
+    super.initialize();
+    
     let bundle = NSBundle(forClass: DERules.self);
     let resourcePath = bundle.pathForResource("bank_codes", ofType: "txt", inDirectory: "de");
     if resourcePath != nil && NSFileManager.defaultManager().fileExistsAtPath(resourcePath!) {
-      let content = NSString(contentsOfFile: resourcePath!, encoding: NSUTF8StringEncoding, error: nil);
+      var error: NSError?;
+      let content = NSString(contentsOfFile: resourcePath!, encoding: NSUTF8StringEncoding, error: &error);
+      if error != nil {
+        let alert = NSAlert.init(error: error!);
+        alert.runModal();
+        return;
+      }
       if content != nil {
         // Extract bank code mappings.
         for line in content!.componentsSeparatedByCharactersInSet(NSCharacterSet.newlineCharacterSet()) {
-          if line.length < 168 {
+          let s: NSString = line as NSString;
+          if s.length < 168 {
             continue; // Not a valid line.
           }
 
-          let s: NSString = line as NSString;
           // 1 for the primary institute or subsidiary, 2 for additional subsidiaries that
           // should not take part in the payments. They share the same bank code anyway.
           let mark = line.substringWithRange(NSMakeRange(8, 1)).toInt();
@@ -62,7 +82,7 @@ private class DERules : IBANRules {
           entry.isDeleted = UnicodeScalar(c) == "D";
           entry.replacement = line.substringWithRange(NSMakeRange(160, 8)).toInt()!;
 
-          if line.length > 168 {
+          if s.length > 168 {
             // Extended bank code file.
             entry.rule = line.substringWithRange(NSMakeRange(168, 4)).toInt()!;
             entry.ruleVersion = line.substringWithRange(NSMakeRange(172, 2)).toInt()!;
@@ -71,6 +91,41 @@ private class DERules : IBANRules {
         }
       }
     }
+  }
+
+  /**
+   * Returns the method to be used for account checks for the specific institute.
+   * May return an empty string if we have no info for the given bank code.
+   */
+  class func checkSumMethodForInstitute(bankCode: String) -> String {
+    let bank = bankCode.toInt();
+    if bank != nil {
+      if let institute = Static.institutes[bank!] {
+        return institute.checksumMethod;
+      }
+    }
+
+    // There are a few methods that are defined but not referenced (yet?).
+    // For some of them we have (obviously) deleted bank codes, which we list here.
+    // For others we take dummy bank code numbers.
+    // This allows us to trigger tests for the associated methods.
+    // The dummy numbers are *not* used outside of this lib.
+    let internalMapping: [String: String] = [
+      "13051172": "52", // No longer used bank code that was using method 52.
+      "16052082": "53", // Ditto for method 53.
+      "80053782": "B6", // There are other (still used) bank codes for method B6.
+
+      "11111111": "35", "11111112": "36", "11111113": "37", "11111114": "39","11111115": "54",
+      "11111116": "62", "11111117": "69", "11111118": "77", "11111119": "79", "11111120": "80",
+      "11111121": "82", "11111122": "83", "11111123": "86", "11111124": "89", "11111125": "93",
+      "11111126": "97", "11111127": "A0", "11111128": "A6", "11111129": "A7", "11111130": "A8",
+      "11111131": "A9", "11111132": "B0", "11111133": "B4", "11111134": "B9",
+    ];
+
+    if let method = internalMapping[bankCode] {
+      return method;
+    }
+    return "";
   }
 
   override class func convertToIBAN(inout account: String, inout _ bankCode: String) -> String? {
@@ -97,24 +152,11 @@ private class DERules : IBANRules {
     case "720207001":
       return rule2(&account, version);
 
-    case "10010424": fallthrough
-    case "20010424": fallthrough
-    case "36010424": fallthrough
-    case "50010424": fallthrough
-    case "51010400": fallthrough
-    case "51010800": fallthrough
-    case "55010400": fallthrough
-    case "55010424": fallthrough
-    case "55010625": fallthrough
-    case "60010424": fallthrough
-    case "70010424": fallthrough
-    case "86010424": // Aareal Bank AG
+    case "10010424", "20010424", "36010424", "50010424", "51010400", "51010800", "55010400",
+      "55010424", "55010625", "60010424", "70010424", "86010424": // Aareal Bank AG
       return rule3(&account, version);
 
-    case "10050000": fallthrough
-    case "10050005": fallthrough
-    case "10050006": fallthrough
-    case "10050007":
+    case "10050000", "10050005", "10050006", "10050007":
       return rule4(&account, version);
 
     default:
@@ -143,7 +185,7 @@ private class DERules : IBANRules {
       return "";
     }
 
-    return nil; // nil for: use default rule.
+    return nil;
   }
 
   private class func rule3(inout account: String, _ version: Int) -> String? {

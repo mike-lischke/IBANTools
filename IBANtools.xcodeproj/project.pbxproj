@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		27412E141A45BB5400A59C6E /* AccountCheckDETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2775C2261A45BA7E00F912C1 /* AccountCheckDETests.swift */; };
 		27428E281A3DBBAF00DC3DB3 /* DERules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27428E271A3DBBAF00DC3DB3 /* DERules.swift */; };
+		2775C2251A45B8E100F912C1 /* DEAccountCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2775C2241A45B8E100F912C1 /* DEAccountCheck.swift */; };
 		278980681A4094F300C2495F /* de in Resources */ = {isa = PBXBuildFile; fileRef = 278980671A4094F300C2495F /* de */; };
 		27A840BB1A33442700B78076 /* IBANtools.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 27A840AF1A33442700B78076 /* IBANtools.framework */; };
 		27A840C21A33442700B78076 /* IBANtoolsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27A840C11A33442700B78076 /* IBANtoolsTests.swift */; };
@@ -27,6 +29,8 @@
 
 /* Begin PBXFileReference section */
 		27428E271A3DBBAF00DC3DB3 /* DERules.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = DERules.swift; path = Source/DERules.swift; sourceTree = SOURCE_ROOT; wrapsLines = 0; };
+		2775C2241A45B8E100F912C1 /* DEAccountCheck.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = DEAccountCheck.swift; path = Source/DEAccountCheck.swift; sourceTree = SOURCE_ROOT; wrapsLines = 0; };
+		2775C2261A45BA7E00F912C1 /* AccountCheckDETests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = AccountCheckDETests.swift; path = Tests/AccountCheckDETests.swift; sourceTree = SOURCE_ROOT; };
 		278980671A4094F300C2495F /* de */ = {isa = PBXFileReference; lastKnownFileType = folder; name = de; path = Resources/de; sourceTree = "<group>"; };
 		27A840AF1A33442700B78076 /* IBANtools.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = IBANtools.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		27A840B31A33442700B78076 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = Source/Info.plist; sourceTree = SOURCE_ROOT; };
@@ -89,6 +93,7 @@
 				27A840B21A33442700B78076 /* Supporting Files */,
 				27A840CB1A33443F00B78076 /* Converter.swift */,
 				27428E271A3DBBAF00DC3DB3 /* DERules.swift */,
+				2775C2241A45B8E100F912C1 /* DEAccountCheck.swift */,
 			);
 			name = Source;
 			path = IBANtools;
@@ -108,6 +113,7 @@
 				27A840BF1A33442700B78076 /* Supporting Files */,
 				27A840C11A33442700B78076 /* IBANtoolsTests.swift */,
 				27BB86861A3DCCA4005317B2 /* IBANtoolsDETests.swift */,
+				2775C2261A45BA7E00F912C1 /* AccountCheckDETests.swift */,
 			);
 			name = Tests;
 			path = IBANtoolsTests;
@@ -228,6 +234,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2775C2251A45B8E100F912C1 /* DEAccountCheck.swift in Sources */,
 				27428E281A3DBBAF00DC3DB3 /* DERules.swift in Sources */,
 				27A840CC1A33443F00B78076 /* Converter.swift in Sources */,
 			);
@@ -238,6 +245,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				27BB86871A3DCCA4005317B2 /* IBANtoolsDETests.swift in Sources */,
+				27412E141A45BB5400A59C6E /* AccountCheckDETests.swift in Sources */,
 				27A840C21A33442700B78076 /* IBANtoolsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
