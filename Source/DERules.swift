@@ -1,21 +1,21 @@
 /**
- * Copyright (c) 2014, 2015, Mike Lischke. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
- */
+* Copyright (c) 2014, 2015, Mike Lischke. All rights reserved.
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License as
+* published by the Free Software Foundation; version 2 of the
+* License.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+* 02110-1301  USA
+*/
 
 import Foundation
 import AppKit
@@ -32,7 +32,7 @@ internal class DERules : IBANRules {
     var bic: String = "";
     var checksumMethod: String = ""; // Checksum method for account numbers.
     var isDeleted: Bool = false;     // True if this entry is just mentioned for completeness.
-                                     // No longer use such an entry for payments.
+    // No longer use such an entry for payments.
     var replacement: Int = 0;        // Set if there's a new bank code now.
     var rule: Int = 0;               // The IBAN conversion rule for this bank.
     var ruleVersion: Int = 0;        // The version of the rule (starting with 0).
@@ -40,11 +40,28 @@ internal class DERules : IBANRules {
 
   private struct Static {
     static var institutes: [Int: BankEntry] = [:];
+
+    // An array of rules. The signature is a bit complicated because some rules only modify
+    // the account number or the bank code, but otherwise use the default IBAN creation rule.
+    // We could use inout parameters, but Swift crashs if inout is used for the array closures.
+    typealias RuleClosure = (String, String, Int) -> ConversionResult;
+    static var rules: [RuleClosure] = [
+      DERules.rule0, DERules.rule1, DERules.rule2, DERules.rule3, DERules.rule4, DERules.rule5,
+      DERules.rule6, DERules.rule7, DERules.rule8, DERules.rule9, DERules.rule10, DERules.rule11,
+      DERules.rule12, DERules.rule13, DERules.rule14, DERules.rule15, DERules.rule16, DERules.rule17,
+      DERules.rule18, DERules.rule19, DERules.rule20, DERules.rule21, DERules.rule22, DERules.rule23,
+      DERules.rule24, DERules.rule25, DERules.rule26, DERules.rule27, DERules.rule28, DERules.rule29,
+      DERules.rule30, DERules.rule31, DERules.rule32, DERules.rule33, DERules.rule34, DERules.rule35,
+      DERules.rule36, DERules.rule37, DERules.rule38, DERules.rule39, DERules.rule40, DERules.rule41,
+      DERules.rule42, DERules.rule43, DERules.rule44, DERules.rule45, DERules.rule46, DERules.rule47,
+      DERules.rule48, DERules.rule49, DERules.rule50, DERules.rule51, DERules.rule52, DERules.rule53,
+      DERules.rule54, DERules.rule55, DERules.rule56, DERules.rule57, DERules.rule58, DERules.rule59,
+    ];
   }
 
   override class func initialize() {
     super.initialize();
-    
+
     let bundle = NSBundle(forClass: DERules.self);
     let resourcePath = bundle.pathForResource("bank_codes", ofType: "txt", inDirectory: "de");
     if resourcePath != nil && NSFileManager.defaultManager().fileExistsAtPath(resourcePath!) {
@@ -94,9 +111,9 @@ internal class DERules : IBANRules {
   }
 
   /**
-   * Returns the method to be used for account checks for the specific institute.
-   * May return an empty string if we have no info for the given bank code.
-   */
+  * Returns the method to be used for account checks for the specific institute.
+  * May return an empty string if we have no info for the given bank code.
+  */
   class func checkSumMethodForInstitute(bankCode: String) -> String {
     let bank = bankCode.toInt();
     if bank != nil {
@@ -105,7 +122,7 @@ internal class DERules : IBANRules {
       }
     }
 
-    // There are a few methods that are defined but not referenced (yet?).
+    // There are a few methods that are defined but not referenced (yet?, no longer?).
     // For some of them we have (obviously) deleted bank codes, which we list here.
     // For others we take dummy bank code numbers.
     // This allows us to trigger tests for the associated methods.
@@ -128,18 +145,19 @@ internal class DERules : IBANRules {
     return "";
   }
 
-  override class func convertToIBAN(inout account: String, inout _ bankCode: String) -> (String, IBANToolsResult) {
+  override class func convertToIBAN(account: String, _ bankCode: String) -> ConversionResult {
     var rule = 0;
     var version = 0;
+    var bankNumber = bankCode;
     if let bank = bankCode.toInt() {
       if let institute = Static.institutes[bank] {
         // Replace bank code by new one if there's one.
         if institute.isDeleted {
-          return ("", .IBANToolsBadBank);
+          return (account, bankCode, "", .IBANToolsBadBank);
         }
 
         if institute.replacement > 0 {
-          bankCode = String(institute.replacement);
+          bankNumber = String(institute.replacement);
         }
 
         rule = institute.rule;
@@ -147,73 +165,74 @@ internal class DERules : IBANRules {
       }
     }
 
-    switch rule {
-    case 0:
-      return ("", .IBANToolsDefaultIBAN); // Default computation.
-
-    case 1: // This bank code is not used in normal payments.
-      return ("", .IBANToolsBadBank);
-
-    default:
-      return ("", .IBANToolsNoMethod);
+    if rule < Static.rules.count {
+      let function = Static.rules[rule];
+      return function(account, bankNumber, version);
     }
+    return (account, bankNumber, "", .IBANToolsNoMethod);
   }
 
-  // Augsburger Aktienbank
-  private class func rule2(inout account: String, _ version: Int) -> String? {
+  private class func rule0(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule1(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsNoConv);
+  }
+
+  private class func rule2(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
     // No IBANs for nnnnnnn86n and nnnnnnn6nn.
     if account[advance(account.endIndex, -3)] == "6" {
-      return "";
+      return (account, bankCode, "", .IBANToolsNoConv);
     }
 
     if (account[advance(account.endIndex, -2)] == "6") && (account[advance(account.endIndex, -3)] == "8") {
-      return "";
+      return (account, bankCode, "", .IBANToolsNoConv);
     }
 
-    return nil;
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
   }
 
-  private class func rule3(inout account: String, _ version: Int) -> String? {
+  private class func rule3(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
     if account == "6161604670" {
-      return "";
+      return (account, bankCode, "", .IBANToolsNoConv);
     }
 
-    return nil;
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
   }
 
-  // Landesbank Berlin / Berliner Sparkasse
-  private class func rule4(inout account: String, _ version: Int) -> String? {
+  private class func rule4(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    var newAccount = account;
     switch account {
     case "135":
-      account = "0990021440";
+      newAccount = "0990021440";
     case "1111":
-      account = "6600012020";
+      newAccount = "6600012020";
     case "1900":
-      account = "0920019005";
+      newAccount = "0920019005";
     case "7878":
-      account = "0780008006";
+      newAccount = "0780008006";
     case "8888":
-      account = "0250030942";
+      newAccount = "0250030942";
     case "9595":
-      account = "1653524703";
+      newAccount = "1653524703";
     case "97097":
-      account = "0013044150";
+      newAccount = "0013044150";
     case "112233":
-      account = "0630025819";
+      newAccount = "0630025819";
     case "336666":
-      account = "6604058903";
+      newAccount = "6604058903";
     case "484848":
-      account = "0920018963";
+      newAccount = "0920018963";
     default:
-      return nil;
+      break;
     }
-    return nil;
+    return (newAccount, bankCode, "", .IBANToolsDefaultIBAN);
   }
 
-  // Commerzbank AG
-  private class func rule0005(bankCode: String, inout account: String, _ version: Int) -> String? {
+  private class func rule5(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
     let code = bankCode.toInt()!;
-    let number = account.toInt()!;
+    var number = account.toInt()!;
 
     // For certain bank codes a specific range of account numbers are closed off and not
     // available for IBAN calculations. Certain other's are generally not used.
@@ -254,9 +273,9 @@ internal class DERules : IBANRules {
       67040085: 0, 82040085: 0
     ];
 
-    if (bankCodes1[code] != nil && number >= 998000000 && number <= 999499999)
+    if (bankCodes1[code] != nil && 999499999...998000000 ~= number )
       || (bankCodes2[code] != nil) {
-      return "";
+        return (account, bankCode, "", .IBANToolsNoConv);
     }
 
     // Special account numbers. Convert to real ones.
@@ -311,12 +330,241 @@ internal class DERules : IBANRules {
       60080000: (0500500500, 0901581400), 60040071: (0500500500, 0005127006)
     ];
 
-    if let entry = mappings[code]? {
-        if entry.0 == number {
-          account = String(entry.1);
-        }
+    var newAccount = account;
+    if let entry = mappings[code] {
+      if entry.0 == number {
+        newAccount = String(entry.1);
+      }
+    } else {
+      let temp = String(number); // Like the original account number but without leading zeros.
+
+      let checksumMethod = checkSumMethodForInstitute(bankCode);
+      if checksumMethod == "13" && 6...7 ~= temp.utf16Count {
+        newAccount += "00"; // Always assumed the sub account number is missing.
+      }
     }
-    return nil;
+
+    return (newAccount, bankCode, "", .IBANToolsDefaultIBAN);
   }
   
+  private class func rule6(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+  
+  private class func rule7(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule8(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule9(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule10(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule11(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule12(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule13(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule14(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule15(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule16(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule17(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule18(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule19(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule20(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule21(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule22(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule23(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule24(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule25(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule26(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule27(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule28(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule29(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+  
+  private class func rule30(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule31(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule32(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule33(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule34(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule35(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule36(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule37(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule38(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule39(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+  
+  private class func rule40(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule41(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule42(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule43(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule44(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule45(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule46(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule47(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule48(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule49(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+  
+  private class func rule50(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule51(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule52(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule53(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule54(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule55(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule56(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule57(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule58(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func rule59(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+  
+  private class func rule60(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
 }

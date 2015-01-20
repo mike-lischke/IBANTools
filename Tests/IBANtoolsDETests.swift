@@ -1,83 +1,85 @@
 /**
- * Copyright (c) 2014, Mike Lischke. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
- */
+* Copyright (c) 2014, Mike Lischke. All rights reserved.
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License as
+* published by the Free Software Foundation; version 2 of the
+* License.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+* 02110-1301  USA
+*/
 
 import XCTest
 import IBANtools
 
 class IBANtoolsDETests: XCTestCase {
 
-    override func setUp() {
-        super.setUp()
-    }
-    
-    override func tearDown() {
-        super.tearDown()
-    }
+  override func setUp() {
+    super.setUp()
+  }
 
-  func testAndCompare(account: String, _ bank: String, _ country: String, _ expected: (String, IBANToolsResult)) -> Bool {
-    let result = IBANtools.convertToIBAN(account, bankCode: bank, countryCode: country);
+  override func tearDown() {
+    super.tearDown()
+  }
+
+  func testAndCompare(account: String, _ bank: String, _ country: String, _ expected: (String, IBANToolsResult), _ checkAccount: Bool = false) -> Bool {
+    // Account validation is switched off for dummy account numbers used in the tests..
+    let result = IBANtools.convertToIBAN(account, bankCode: bank, countryCode: country, validateAccount: checkAccount);
     return result.0 == expected.0 && result.1 == expected.1;
   }
 
   func testIBANs() {
 
-    // Rule 0000 is the default rule which is tested in the generic IBAN tests.
+    // Rule 0000. Uses the default IBAN conversion rule. There are other tests for the default rule.
+    XCTAssert(testAndCompare("12345", "10010424", "de", ("DE77100104240000012345", .IBANToolsDefaultIBAN)), "1");
+    XCTAssert(testAndCompare("12345", "20010424", "de", ("DE21200104240000012345", .IBANToolsDefaultIBAN)), "2");
+    XCTAssert(testAndCompare("12345", "36010424", "de", ("DE09360104240000012345", .IBANToolsDefaultIBAN)), "3");
+    XCTAssert(testAndCompare("12345", "50010424", "de", ("DE47500104240000012345", .IBANToolsDefaultIBAN)), "4");
+    XCTAssert(testAndCompare("12345", "51010400", "de", ("DE55510104000000012345", .IBANToolsDefaultIBAN)), "5");
+    XCTAssert(testAndCompare("12345", "51010800", "de", ("DE87510108000000012345", .IBANToolsDefaultIBAN)), "6");
+    XCTAssert(testAndCompare("12345", "55010400", "de", ("DE52550104000000012345", .IBANToolsDefaultIBAN)), "7");
+    XCTAssert(testAndCompare("12345", "55010424", "de", ("DE19550104240000012345", .IBANToolsDefaultIBAN)), "8");
+    XCTAssert(testAndCompare("12345", "55010625", "de", ("DE70550106250000012345", .IBANToolsDefaultIBAN)), "9");
+    XCTAssert(testAndCompare("12345", "60010424", "de", ("DE88600104240000012345", .IBANToolsDefaultIBAN)), "10");
+    XCTAssert(testAndCompare("12345", "70010424", "de", ("DE32700104240000012345", .IBANToolsDefaultIBAN)), "11");
+    XCTAssert(testAndCompare("12345", "86010424", "de", ("DE20860104240000012345", .IBANToolsDefaultIBAN)), "12");
 
     // Rule 0001.
-    XCTAssert(testAndCompare("532013018", "10050005", "dE", ("", .IBANToolsBadBank)), "0001.1");
-    XCTAssert(testAndCompare("532013018", "25451450", "dE", ("", .IBANToolsBadBank)), "0001.2");
-/*
+    XCTAssert(testAndCompare("532013018", "10050005", "dE", ("", .IBANToolsNoConv)), "1.1");
+    XCTAssert(testAndCompare("532013018", "25451450", "dE", ("", .IBANToolsNoConv)), "1.2");
+
     // Rule 0002.
-    XCTAssert(testAndCompare("532013018", "72020700", "dE", ("DE09720207000532013018", .IBANToolsOK)), "1");
-    XCTAssert(testAndCompare("12345", "720207001", "de", ("DE637202070010000012345", .IBANToolsBadBank)), "2");
-    XCTAssert(testAndCompare("12645", "720207001", "de", ( "", .IBANToolsBadBank)), "3");
-    XCTAssert(testAndCompare("12865", "720207001", "de", ("", .IBANToolsBadBank)), "4");
+    XCTAssert(testAndCompare("532013018", "72020700", "dE", ("DE09720207000532013018", .IBANToolsDefaultIBAN)), "2.1");
+    XCTAssert(testAndCompare("12345", "72020700", "de", ("DE63720207000000012345", .IBANToolsDefaultIBAN)), "2.2");
+    XCTAssert(testAndCompare("12645", "72020700", "de", ( "", .IBANToolsNoConv)), "2.3");
+    XCTAssert(testAndCompare("12865", "72020700", "de", ("", .IBANToolsNoConv)), "2.4");
 
-    XCTAssert(testAndCompare("12345", "10010424", "de", ("DE77100104240000012345", .IBANToolsBadBank)), "1");
-    XCTAssert(testAndCompare("12345", "20010424", "de", ("DE21200104240000012345", .IBANToolsBadBank)), "2");
-    XCTAssert(testAndCompare("12345", "36010424", "de", ("DE09360104240000012345", .IBANToolsBadBank)), "3");
-    XCTAssert(testAndCompare("12345", "50010424", "de", ("DE47500104240000012345", .IBANToolsBadBank)), "4");
-    XCTAssert(testAndCompare("12345", "51010400", "de", ("DE55510104000000012345", .IBANToolsBadBank)), "5");
-    XCTAssert(testAndCompare("12345", "51010800", "de", ("DE87510108000000012345", .IBANToolsBadBank)), "6");
-    XCTAssert(testAndCompare("12345", "55010400", "de", ("DE52550104000000012345", .IBANToolsBadBank)), "7");
-    XCTAssert(testAndCompare("12345", "55010424", "de", ("DE19550104240000012345", .IBANToolsBadBank)), "8");
-    XCTAssert(testAndCompare("12345", "55010625", "de", ("DE70550106250000012345", .IBANToolsBadBank)), "9");
-    XCTAssert(testAndCompare("12345", "60010424", "de", ("DE88600104240000012345", .IBANToolsBadBank)), "10");
-    XCTAssert(testAndCompare("12345", "70010424", "de", ("DE32700104240000012345", .IBANToolsBadBank)), "11");
-    XCTAssert(testAndCompare("12345", "86010424", "de", ("DE20860104240000012345", .IBANToolsBadBank)), "12");
+    // Rule 0003.
+    XCTAssert(testAndCompare("6161604670", "51010800", "dE", ("", .IBANToolsNoConv)), "3.1");
+    XCTAssert(testAndCompare("12345", "51010800", "de", ("DE87510108000000012345", .IBANToolsDefaultIBAN)), "3.2");
 
-    XCTAssert(testAndCompare("6161604670", "10010424", "de", ("", .IBANToolsBadBank)), "1");
-    XCTAssert(testAndCompare("6161604670", "20010424", "de", ("", .IBANToolsBadBank)), "2");
-    XCTAssert(testAndCompare("6161604670", "36010424", "de", ("", .IBANToolsBadBank)), "3");
-    XCTAssert(testAndCompare("6161604670", "50010424", "de", ("", .IBANToolsBadBank)), "4");
-    XCTAssert(testAndCompare("6161604670", "51010400", "de", ("", .IBANToolsBadBank)), "5");
-    XCTAssert(testAndCompare("6161604670", "51010800", "de", ("", .IBANToolsBadBank)), "6");
-    XCTAssert(testAndCompare("6161604670", "55010400", "de", ("", .IBANToolsBadBank)), "7");
-    XCTAssert(testAndCompare("6161604670", "55010424", "de", ("", .IBANToolsBadBank)), "8");
-    XCTAssert(testAndCompare("6161604670", "55010625", "de", ("", .IBANToolsBadBank)), "9");
-    XCTAssert(testAndCompare("6161604670", "60010424", "de", ("", .IBANToolsBadBank)), "10");
-    XCTAssert(testAndCompare("6161604670", "70010424", "de", ("", .IBANToolsBadBank)), "11");
-    XCTAssert(testAndCompare("6161604670", "86010424", "de", ("", .IBANToolsBadBank)), "12");
-*/
-  }
+    // Rule 0004.
+    XCTAssert(testAndCompare("135", "10050000", "dE", ("DE86100500000990021440", .IBANToolsDefaultIBAN)), "4.1");
+    XCTAssert(testAndCompare("1111", "10050000", "de", ("DE19100500006600012020", .IBANToolsDefaultIBAN)), "4.2");
+    XCTAssert(testAndCompare("1900", "10050000", "dE", ("DE73100500000920019005", .IBANToolsDefaultIBAN)), "4.3");
+    XCTAssert(testAndCompare("7878", "10050000", "de", ("DE48100500000780008006", .IBANToolsDefaultIBAN)), "4.4");
+    XCTAssert(testAndCompare("8888", "10050000", "dE", ("DE43100500000250030942", .IBANToolsDefaultIBAN)), "4.5");
+    XCTAssert(testAndCompare("9595", "10050000", "de", ("DE60100500001653524703", .IBANToolsDefaultIBAN)), "4.6");
+    XCTAssert(testAndCompare("97097", "10050000", "dE", ("DE15100500000013044150", .IBANToolsDefaultIBAN)), "4.7");
+    XCTAssert(testAndCompare("112233", "10050000", "de", ("DE54100500000630025819", .IBANToolsDefaultIBAN)), "4.8");
+    XCTAssert(testAndCompare("336666", "10050000", "dE", ("DE22100500006604058903", .IBANToolsDefaultIBAN)), "4.9");
+    XCTAssert(testAndCompare("484848", "10050000", "de", ("DE43100500000920018963", .IBANToolsDefaultIBAN)), "4.10");
+    XCTAssert(testAndCompare("12345", "10050000", "de", ("DE77100500000000012345", .IBANToolsDefaultIBAN)), "4.11");
 
-  func testRule4() {
+    // Rule 0005.
     /*
     26580070 732502200 DRESDEFF265 DE32265800700732502200 Standard
     26580070 7325022 DRESDEFF265 DE32265800700732502200 verschobenes Konto
@@ -127,68 +129,5 @@ class IBANtoolsDETests: XCTestCase {
     37080040 111 DRESDEFF370 DE69370800400215022000 Spendenkontonummer
     50040000 101010 COBADEFFXXX DE46500400000311011100 Spendenkontonummer
     */
-  }
-
-  func testRule5() {
-  }
-
-  func testRule6() {
-  }
-
-  func testRule7() {
-  }
-
-  func testRule8() {
-  }
-
-  func testRule9() {
-  }
-
-  func testRule10() {
-  }
-
-  func testRule11() {
-  }
-
-  func testRule12() {
-  }
-
-  func testRule13() {
-  }
-
-  func testRule14() {
-  }
-
-  func testRule15() {
-  }
-
-  func testRule16() {
-  }
-
-  func testRule17() {
-  }
-
-  func testRule18() {
-  }
-
-  func testRule19() {
-  }
-
-  func testRule20() {
-  }
-
-  func testRule21() {
-  }
-
-  func testRule22() {
-  }
-
-  func testRule23() {
-  }
-
-  func testRule24() {
-  }
-
-  func testRule25() {
   }
 }

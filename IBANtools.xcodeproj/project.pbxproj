@@ -30,14 +30,14 @@
 /* Begin PBXFileReference section */
 		27428E271A3DBBAF00DC3DB3 /* DERules.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = DERules.swift; path = Source/DERules.swift; sourceTree = SOURCE_ROOT; wrapsLines = 0; };
 		2775C2241A45B8E100F912C1 /* DEAccountCheck.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = DEAccountCheck.swift; path = Source/DEAccountCheck.swift; sourceTree = SOURCE_ROOT; wrapsLines = 0; };
-		2775C2261A45BA7E00F912C1 /* AccountCheckDETests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = AccountCheckDETests.swift; path = Tests/AccountCheckDETests.swift; sourceTree = SOURCE_ROOT; };
+		2775C2261A45BA7E00F912C1 /* AccountCheckDETests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = AccountCheckDETests.swift; path = Tests/AccountCheckDETests.swift; sourceTree = SOURCE_ROOT; wrapsLines = 0; };
 		278980671A4094F300C2495F /* de */ = {isa = PBXFileReference; lastKnownFileType = folder; name = de; path = Resources/de; sourceTree = "<group>"; };
 		27A840AF1A33442700B78076 /* IBANtools.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = IBANtools.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		27A840B31A33442700B78076 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = Source/Info.plist; sourceTree = SOURCE_ROOT; };
 		27A840BA1A33442700B78076 /* IBANtoolsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IBANtoolsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		27A840C01A33442700B78076 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = Tests/Info.plist; sourceTree = SOURCE_ROOT; };
-		27A840C11A33442700B78076 /* IBANtoolsTests.swift */ = {isa = PBXFileReference; indentWidth = 4; lastKnownFileType = sourcecode.swift; name = IBANtoolsTests.swift; path = Tests/IBANtoolsTests.swift; sourceTree = SOURCE_ROOT; tabWidth = 4; wrapsLines = 0; };
-		27A840CB1A33443F00B78076 /* Converter.swift */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 4; lastKnownFileType = sourcecode.swift; name = Converter.swift; path = Source/Converter.swift; sourceTree = SOURCE_ROOT; tabWidth = 4; wrapsLines = 0; };
+		27A840C11A33442700B78076 /* IBANtoolsTests.swift */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.swift; name = IBANtoolsTests.swift; path = Tests/IBANtoolsTests.swift; sourceTree = SOURCE_ROOT; tabWidth = 2; wrapsLines = 0; };
+		27A840CB1A33443F00B78076 /* Converter.swift */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.swift; name = Converter.swift; path = Source/Converter.swift; sourceTree = SOURCE_ROOT; tabWidth = 2; wrapsLines = 0; };
 		27BB86861A3DCCA4005317B2 /* IBANtoolsDETests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = IBANtoolsDETests.swift; path = Tests/IBANtoolsDETests.swift; sourceTree = SOURCE_ROOT; wrapsLines = 0; };
 /* End PBXFileReference section */
 
