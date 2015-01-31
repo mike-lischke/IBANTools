@@ -19,6 +19,21 @@
 
 import Foundation
 
+struct AccountKey: Hashable {
+  let bankCode: Int;
+  let account: Int;
+
+  init(_ code: Int, _ acc: Int) {
+    bankCode = code;
+    account = acc;
+  }
+  var hashValue: Int { get { return account * 100000000 + bankCode; } }
+};
+
+func ==(lhs: AccountKey, rhs: AccountKey) -> Bool {
+  return lhs.bankCode == rhs.bankCode && lhs.account == rhs.account;
+}
+
 @objc(DEAccountCheck)
 internal class DEAccountCheck : AccountCheck {
 
@@ -284,25 +299,28 @@ internal class DEAccountCheck : AccountCheck {
     return result;
   }
 
-  override class func isValidAccount(account: String, _ bankCode: String) -> (Bool, IBANToolsResult) {
+  override class func isValidAccount(account: String, _ bankCode: String) -> (Bool, String, IBANToolsResult) {
 
     var accountAsInt: Int;
     if let n = account.toInt() {
       accountAsInt = n;
     } else {
-      return (false, .IBANToolsWrongValue);
+      return (false, account, .IBANToolsWrongValue);
     }
     var method = DERules.checkSumMethodForInstitute(bankCode);
-    let result = checkWithMethod(method, account, bankCode);
-    return (result.0, result.1);
+    let (valid, realAccount, result, _) = checkWithMethod(method, account, bankCode);
+    return (valid, realAccount, result);
   }
 
   /**
    * Runs the specific checksum method on the given account. Returns validity, the result flag and
    * the position of the checksum digit (which might vary, even for a single method). This position
    * can be used for special checks (e.g. the IBAN conversion).
+   * Special accounts are first mapped to their real values (which are returned as a further value).
    */
-  class func checkWithMethod(startMethod: String, _ account: String, _ bankCode: String) -> (Bool, IBANToolsResult, Int) {
+  class func checkWithMethod(startMethod: String, var _ account: String, _ bankCode: String) -> (Bool, String, IBANToolsResult, Int) {
+
+    account = checkSpecialAccount(account, bankCode);
 
     var accountAsInt: Int = account.toInt()!; // This must be valid at this point.
 
@@ -329,13 +347,13 @@ internal class DEAccountCheck : AccountCheck {
     // Note: do not generally reject account number 0 which we use as an extreme corner case below
     //       to harden the routines. In some cases a 0 is even valid.
     if method == "09" || method == "12" {
-      return (true, .IBANToolsNoChecksum, -1); // No checksum computation for these methods.
+      return (true, account, .IBANToolsNoChecksum, -1); // No checksum computation for these methods.
     }
 
     if let p = Static.methodParameters[method] {
       parameters = p;
     } else {
-      return (false, .IBANToolsNoMethod, -1);
+      return (false, account, .IBANToolsNoMethod, -1);
     }
 
     // Convert account digits to their number values in an array.
@@ -347,7 +365,7 @@ internal class DEAccountCheck : AccountCheck {
       number.append(n - 48);
     }
     var baseNumber = number; // The original number without checksum (assuming this number is in the
-    // last digit, which is not always the case). So, use with care.
+                             // last digit, which is not always the case). So, use with care.
     baseNumber.removeLast();
 
     // Fill the original number on the left with zeros to get to a 10 digits number.
@@ -361,8 +379,8 @@ internal class DEAccountCheck : AccountCheck {
     workSlice = number10[parameters.indices.start...parameters.indices.stop];
     expectedCheckSum = number10[parameters.indices.check];
 
-    let defaultFalseResult = (false, IBANToolsResult.IBANToolsBadAccount, -1);
-    let defaultTrueResult = (true, IBANToolsResult.IBANToolsNoChecksum, -1);
+    let defaultFalseResult = (false, account, IBANToolsResult.IBANToolsBadAccount, -1);
+    let defaultTrueResult = (true, account, IBANToolsResult.IBANToolsNoChecksum, -1);
 
     // Pre-massage and special handling for certain methods, depending on the given account.
     switch method {
@@ -462,7 +480,7 @@ internal class DEAccountCheck : AccountCheck {
       }
 
     case "76":
-      if number[0] == 1 || number[0] == 2 || number[0] == 3 || number[0] == 5 {
+      if number10[0] == 1 || number10[0] == 2 || number10[0] == 3 || number10[0] == 5 {
         return defaultFalseResult;
       }
 
@@ -508,7 +526,7 @@ internal class DEAccountCheck : AccountCheck {
     case "95":
       switch accountAsInt {
       case 0000000001...0001999999, 0009000000...0025999999, 0396000000...0499999999,
-      0700000000...0799999999, 0910000000...0989999999:
+           0700000000...0799999999, 0910000000...0989999999:
         return defaultTrueResult;
 
       default:
@@ -616,7 +634,7 @@ internal class DEAccountCheck : AccountCheck {
         useMethod("75");
 
       case 8:
-        return (number10[2] == 3 || number10[2] == 4 || number10[2] == 5, .IBANToolsNoChecksum, -1);
+        return (number10[2] == 3 || number10[2] == 4 || number10[2] == 5, account, .IBANToolsNoChecksum, -1);
 
       case 10:
         switch number10[0] {
@@ -627,7 +645,7 @@ internal class DEAccountCheck : AccountCheck {
           useMethod("00");
 
         default:
-          return (number10[0] == 7 && number10[1] == 0 || number10[0] == 8 && number10[1] == 5, .IBANToolsNoChecksum, -1);
+          return (number10[0] == 7 && number10[1] == 0 || number10[0] == 8 && number10[1] == 5, account, .IBANToolsNoChecksum, -1);
         }
 
       default:
@@ -703,20 +721,20 @@ internal class DEAccountCheck : AccountCheck {
     case "00", "08", "13", "30", "41", "45", "49", "59", "65", "67", "72", "74", "78", "79",
     "80", "94", "A1", "A2", "A3", "A7", "C6", "C9":
       if method == "80" && number10[2] == 9 {
-        return (method51(number10), .IBANToolsOK, parameters.indices.check);
+        return (method51(number10), account, .IBANToolsOK, parameters.indices.check);
       }
 
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference]);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "06", "10", "11", "15", "19", "20", "26", "28", "32", "33", "34", "36", "37", "38", "39",
     "40", "42", "44", "46", "47", "48", "50", "55", "60", "70", "81", "88", "95", "96", "99",
     "A0", "A8", "B0", "B6", "B8":
       if (method == "81" || method == "A8") && number10[2] == 9 {
-        return (method51(number10), .IBANToolsOK, parameters.indices.check);
+        return (method51(number10), account, .IBANToolsOK, parameters.indices.check);
       }
 
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
@@ -725,7 +743,7 @@ internal class DEAccountCheck : AccountCheck {
         checksum = 9;
       }
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "02", "04", "07", "14", "25", "58", "B2", "B8":
@@ -734,36 +752,36 @@ internal class DEAccountCheck : AccountCheck {
       if method == "25" && checksum == 99 {
         // Checksum valid only if the work number (the one in the second position) is either 9 or 8.
         if number[1] == 8 || number[1] == 9 {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
       }
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "17", "C1":
       let checksum = pattern2(workSlice, modulus: parameters.modulus, weights: parameters.weights, backwards: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "01", "03", "05", "18", "43", "49", "92", "98", "A9", "B1", "B7":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "21":
       let checksum = pattern3(workSlice, modulus: parameters.modulus, weights: parameters.weights);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "22", "C2":
       let checksum = pattern4(workSlice, modulus: parameters.modulus, weights: parameters.weights);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "31", "35", "76":
@@ -771,19 +789,19 @@ internal class DEAccountCheck : AccountCheck {
         mappings: [.DontMap, .DontMap, .ReturnRemainder], useDigitSum: false);
       if method == "35" && checksum == 10 {
         let valid = number10[8] == number10[9];
-        return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+        return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
       }
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "27":
-      return (method27(accountAsInt, number10), .IBANToolsOK, parameters.indices.check);
+      return (method27(accountAsInt, number10), account, .IBANToolsOK, parameters.indices.check);
 
     case "29":
       let checksum = patternM10H(workSlice, modulus: parameters.modulus);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "16", "23":
@@ -793,10 +811,10 @@ internal class DEAccountCheck : AccountCheck {
         switch method {
         case "16":
           let valid = number10[8] == number10[9];
-          return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+          return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
         case "23":
           let valid = number10[5] == number10[6];
-          return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+          return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
         default:
           break;
@@ -806,14 +824,14 @@ internal class DEAccountCheck : AccountCheck {
         checksum = 0;
       }
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "24", "B9":
       var checksum = pattern5(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         backwards: method == "B9");
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       // A second step if the check failed.
@@ -823,24 +841,24 @@ internal class DEAccountCheck : AccountCheck {
           checksum -= 10;
         }
         if expectedCheckSum == checksum {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
       }
 
     case "51":
       let valid = method51(number10);
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "52", "53", "C0":
       if method5253(number, bankCode: bankCode, modulus: parameters.modulus, weights: parameters.weights) {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "54":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.DontMap, .DontMap, .ReturnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "56":
@@ -856,7 +874,7 @@ internal class DEAccountCheck : AccountCheck {
 
       }
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "57":
@@ -873,17 +891,17 @@ internal class DEAccountCheck : AccountCheck {
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .DontMap, .ReturnDifference]);
         let valid = expectedCheckSum == checksum;
-        return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+        return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
       case 32...39, 41...49, 52...54, 56...60, 62...63, 67...69, 71, 72, 83...87, 89, 90, 92,
-      93, 96...98: // Variant 2.
+           93, 96...98: // Variant 2.
         // The checksum is in digit 2 which must not be included in the computation.
         // But instead we have to include digit 9.
         workSlice = number10[0...1] + number10[3...9];
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .DontMap, .ReturnDifference]);
         let valid = number10[2] == checksum;
-        return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+        return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
       case 40, 50, 91, 99: // Variant 3.
         return defaultTrueResult;
@@ -904,30 +922,30 @@ internal class DEAccountCheck : AccountCheck {
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.DontMap, .DontMap, .ReturnDifference], backwards: true, useDigitSum: true);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "64":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .MapToZero, .ReturnDifference], backwards: false, useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "66":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToOne, .MapToZero, .ReturnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "68":
       let valid = method68(number);
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "69":
       if number10[0] == 9 && number10[1] == 3 {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       if !(9700000000...9799999999 ~= accountAsInt) {
@@ -936,7 +954,7 @@ internal class DEAccountCheck : AccountCheck {
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
       }
 
@@ -944,13 +962,13 @@ internal class DEAccountCheck : AccountCheck {
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .MapToOne, .ReturnDifference], backwards: false, useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "73":
       if number10[2] == 9 {
         let valid = method51(number10);
-        return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+        return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
       }
 
       for subMethod in ["73a", "73b", "73c"] {
@@ -958,7 +976,7 @@ internal class DEAccountCheck : AccountCheck {
         var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .DontMap, .ReturnDifference]);
         if expectedCheckSum == checksum {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
       }
 
@@ -981,21 +999,21 @@ internal class DEAccountCheck : AccountCheck {
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference], backwards: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, checksumPos);
+        return (true, account, .IBANToolsOK, checksumPos);
       }
 
     case "77":
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.DontMap, .DontMap, .ReturnDivByModulus], useDigitSum: false);
       if checksum == 0 {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "83", "84", "85":
       if method == "84" {
         if number10[2] == 9 {
           let valid = method51(number10);
-          return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+          return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
         }
       } else {
         if number10[2] == 9 && number10[3] == 9 {
@@ -1003,7 +1021,7 @@ internal class DEAccountCheck : AccountCheck {
           var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
             mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
           let valid = expectedCheckSum == checksum;
-          return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+          return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
         }
       }
 
@@ -1012,7 +1030,7 @@ internal class DEAccountCheck : AccountCheck {
         var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
       }
 
@@ -1021,21 +1039,21 @@ internal class DEAccountCheck : AccountCheck {
     case "86":
       if number10[2] == 9 {
         let valid = method51(number10);
-        return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+        return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
       }
 
       useMethod("86a");
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference]);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       useMethod("86b");
       checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       return defaultFalseResult;
@@ -1047,25 +1065,25 @@ internal class DEAccountCheck : AccountCheck {
 
       if number10[2] == 9 {
         let valid = method51(number10);
-        return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+        return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
       }
 
       if method87a(number10) {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       useMethod("87b");
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       useMethod("87c");
       checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       return defaultFalseResult;
@@ -1074,7 +1092,7 @@ internal class DEAccountCheck : AccountCheck {
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .MapToZero, .ReturnDifference]);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "90":
@@ -1083,7 +1101,7 @@ internal class DEAccountCheck : AccountCheck {
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
         let valid = expectedCheckSum == checksum;
-        return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+        return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
       }
 
       for subMethod in ["90a", "90b"] {
@@ -1091,7 +1109,7 @@ internal class DEAccountCheck : AccountCheck {
         var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
       }
 
@@ -1102,7 +1120,7 @@ internal class DEAccountCheck : AccountCheck {
         if checksum == 7 || checksum == 8 || checksum == 9 {
           return defaultFalseResult; // Even though the checksum is correct those accounts are considered wrong.
         }
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       useMethod("90d");
@@ -1112,7 +1130,7 @@ internal class DEAccountCheck : AccountCheck {
         if checksum == 9 {
           return defaultFalseResult;
         }
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       for subMethod in ["90e", "90g"] {
@@ -1120,7 +1138,7 @@ internal class DEAccountCheck : AccountCheck {
         checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .DontMap, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
       }
 
@@ -1132,13 +1150,13 @@ internal class DEAccountCheck : AccountCheck {
         var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
       }
 
     case "93":
       let valid = method93(number10);
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "97":
       var checksum = pattern6(accountAsInt / 10, modulus: parameters.modulus);
@@ -1146,7 +1164,7 @@ internal class DEAccountCheck : AccountCheck {
         checksum = 0;
       }
       if Int(expectedCheckSum) == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "A4":
@@ -1157,14 +1175,14 @@ internal class DEAccountCheck : AccountCheck {
         var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
 
         useMethod("A4b");
         checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .DontMap, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
       }
 
@@ -1172,17 +1190,17 @@ internal class DEAccountCheck : AccountCheck {
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       let valid = method93(number10);
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "A5":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference]);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       if number10[0] == 9 {
@@ -1192,13 +1210,13 @@ internal class DEAccountCheck : AccountCheck {
     case "A6":
       if number10[2] == 9 {
         let valid = method51(number10);
-        return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+        return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
       }
 
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference]);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       if number10[0] == 9 {
@@ -1209,7 +1227,7 @@ internal class DEAccountCheck : AccountCheck {
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       if number10[0] == 8 || number10[0] == 9 {
@@ -1226,14 +1244,14 @@ internal class DEAccountCheck : AccountCheck {
           mappings: [.MapToZero, .MapToSpecial, .ReturnDifference], useDigitSum: false);
       }
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "C8":
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference]);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       for subMethod in ["C8b", "C8c"] {
@@ -1241,7 +1259,7 @@ internal class DEAccountCheck : AccountCheck {
         checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .MapToSpecial, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
       }
 
@@ -1249,27 +1267,27 @@ internal class DEAccountCheck : AccountCheck {
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       useMethod("D2b");
       checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference]);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       let valid = method68(number);
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "D3":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference]);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
       let valid = method27(accountAsInt, number10);
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "D5":
       for subMethod in ["D5a", "D5b"] {
@@ -1277,7 +1295,7 @@ internal class DEAccountCheck : AccountCheck {
         var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
 
         if (number10[2] == 9 && number10[3] == 9) {
@@ -1290,7 +1308,7 @@ internal class DEAccountCheck : AccountCheck {
         var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.DontMap, .DontMap, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
       }
 
@@ -1298,7 +1316,7 @@ internal class DEAccountCheck : AccountCheck {
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .MapToSpecial, .ReturnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       useMethod("D6b");
@@ -1306,7 +1324,7 @@ internal class DEAccountCheck : AccountCheck {
         checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .DontMap, .ReturnDifference], useDigitSum: flag);
         if expectedCheckSum == checksum {
-          return (true, .IBANToolsOK, parameters.indices.check);
+          return (true, account, .IBANToolsOK, parameters.indices.check);
         }
       }
 
@@ -1314,7 +1332,7 @@ internal class DEAccountCheck : AccountCheck {
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.DontMap, .DontMap, .ReturnRemainder], useDigitSum: true);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "D9":
@@ -1322,21 +1340,21 @@ internal class DEAccountCheck : AccountCheck {
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference]);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       useMethod("10");
       checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       useMethod("18");
       checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "E0":
@@ -1347,14 +1365,14 @@ internal class DEAccountCheck : AccountCheck {
         checksum = parameters.modulus - checksum;
       }
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     case "E1":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnRemainder], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
     default:
@@ -1371,27 +1389,27 @@ internal class DEAccountCheck : AccountCheck {
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference]);
       let valid = expectedCheckSum == checksum;
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "69", "B8":
       useMethod(method + "b");
       let checksum = patternM10H(workSlice, modulus: parameters.modulus);
       let valid = expectedCheckSum == checksum;
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "50", "A3", "A5", "A9", "C0", "C7":
       useMethod(method + "b");
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
       let valid = expectedCheckSum == checksum;
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "74":
       if number.count == 6 {
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .DontMap, .ReturnDiff2HalveDecade]);
         let valid = expectedCheckSum == checksum;
-        return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+        return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
       }
       return defaultFalseResult;
 
@@ -1401,40 +1419,40 @@ internal class DEAccountCheck : AccountCheck {
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.DontMap, .DontMap, .ReturnRemainder], useDigitSum: false);
       let valid = expectedCheckSum == checksum;
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "77":
       useMethod(method + "b");
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDiff2HalveDecade], useDigitSum: false);
       let valid = checksum == 0;
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "A2", "C9":
       useMethod(method + "b");
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .MapToSpecial, .ReturnDifference], useDigitSum: false);
       let valid = expectedCheckSum == checksum;
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "A7", "B1":
       useMethod(method + "b");
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference], useDigitSum: false);
       let valid = expectedCheckSum == checksum;
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "B6":
       useMethod(method + "b");
       let valid = method5253(number, bankCode: bankCode, modulus: parameters.modulus, weights: parameters.weights);
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     case "B9":
       useMethod(method + "b");
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.DontMap, .DontMap, .ReturnRemainder], useDigitSum: false);
       if expectedCheckSum == checksum {
-        return (true, .IBANToolsOK, parameters.indices.check);
+        return (true, account, .IBANToolsOK, parameters.indices.check);
       }
 
       checksum += 5;
@@ -1442,7 +1460,7 @@ internal class DEAccountCheck : AccountCheck {
         checksum -= 10;
       }
       let valid = expectedCheckSum == checksum;
-      return (valid, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
+      return (valid, account, valid ? .IBANToolsOK : .IBANToolsBadAccount, parameters.indices.check);
 
     default:
       return defaultFalseResult;
@@ -1900,6 +1918,65 @@ internal class DEAccountCheck : AccountCheck {
     }
     return false;
   }
-  
+
+  private class func checkSpecialAccount(account: String, _ bankCode: String) -> String {
+    let mappings: [AccountKey: Int] = [ // bank code: pseudo account, real account
+
+      // Commerzbank.
+      AccountKey(30040000, 0000000036): 0002611036, AccountKey(47880031, 0000000050): 0519899900,
+      AccountKey(47840065, 0000000050): 0001501030, AccountKey(47840065, 0000000055): 0001501030,
+      AccountKey(70080000, 0000000094): 0928553201, AccountKey(70040041, 0000000094): 0002128080,
+      AccountKey(47840065, 0000000099): 0001501030, AccountKey(37080040, 0000000100): 0269100000,
+      AccountKey(38040007, 0000000100): 0001191600, AccountKey(37080040, 0000000111): 0215022000,
+      AccountKey(51080060, 0000000123): 0012299300, AccountKey(36040039, 0000000150): 0001616200,
+      AccountKey(68080030, 0000000202): 0416520200, AccountKey(30040000, 0000000222): 0348010002,
+      AccountKey(38040007, 0000000240): 0001090240, AccountKey(69240075, 0000000444): 0004455200,
+      AccountKey(60080000, 0000000502): 0901581400, AccountKey(60040071, 0000000502): 0005259502,
+      AccountKey(55040022, 0000000555): 0002110500, AccountKey(39080005, 0000000556): 0204655600,
+      AccountKey(39040013, 0000000556): 0001065556, AccountKey(57080070, 0000000661): 0604101200,
+      AccountKey(26580070, 0000000700): 0710000000, AccountKey(50640015, 0000000777): 0002222222,
+      AccountKey(30040000, 0000000999): 0001237999, AccountKey(86080000, 0000001212): 0480375900,
+      AccountKey(37040044, 0000001888): 0212129101, AccountKey(25040066, 0000001919): 0001419191,
+      AccountKey(10080000, 0000001987): 0928127700, AccountKey(50040000, 0000002000): 0007284003,
+      AccountKey(20080000, 0000002222): 0903927200, AccountKey(38040007, 0000003366): 0003853330,
+      AccountKey(37080040, 0000004004): 0233533500, AccountKey(37080040, 0000004444): 0233000300,
+      AccountKey(43080083, 0000004630): 0825110100, AccountKey(50080000, 0000006060): 0096736100,
+      AccountKey(10040000, 0000007878): 0002678787, AccountKey(10080000, 0000008888): 0928126501,
+      AccountKey(50080000, 0000009000): 0026492100, AccountKey(79080052, 0000009696): 0300021700,
+      AccountKey(79040047, 0000009696): 0006802102, AccountKey(39080005, 0000009800): 0208457000,
+      AccountKey(50080000, 0000042195): 0900333200, AccountKey(32040024, 0000047800): 0001555150,
+      AccountKey(37080040, 0000055555): 0263602501, AccountKey(38040007, 0000055555): 0003055555,
+      AccountKey(50080000, 0000101010): 0090003500, AccountKey(50040000, 0000101010): 0003110111,
+      AccountKey(37040044, 0000102030): 0002223444, AccountKey(86080000, 0000121200): 0480375900,
+      AccountKey(66280053, 0000121212): 0625242400, AccountKey(16080000, 0000123456): 0012345600,
+      AccountKey(29080010, 0000124124): 0107502000, AccountKey(37080040, 0000182002): 0216603302,
+      AccountKey(12080000, 0000212121): 4050462200, AccountKey(37080040, 0000300000): 0983307900,
+      AccountKey(37040044, 0000300000): 0003000007, AccountKey(37080040, 0000333333): 0270330000,
+      AccountKey(38040007, 0000336666): 0001052323, AccountKey(55040022, 0000343434): 0002179000,
+      AccountKey(85080000, 0000400000): 0459488501, AccountKey(37080040, 0000414141): 0041414100,
+      AccountKey(38040007, 0000414141): 0001080001, AccountKey(20080000, 0000505050): 0500100600,
+      AccountKey(37080040, 0000555666): 0055566600, AccountKey(20080000, 0000666666): 0900732500,
+      AccountKey(30080000, 0000700000): 0800005000, AccountKey(70080000, 0000700000): 0750055500,
+      AccountKey(70080000, 0000900000): 0319966601, AccountKey(37080040, 0000909090): 0269100000,
+      AccountKey(38040007, 0000909090): 0001191600, AccountKey(70080000, 0000949494): 0575757500,
+      AccountKey(70080000, 0001111111): 0448060000, AccountKey(70040041, 0001111111): 0001521400,
+      AccountKey(10080000, 0001234567): 0920192001, AccountKey(38040007, 0001555555): 0002582666,
+      AccountKey(76040061, 0002500000): 0004821468, AccountKey(16080000, 0003030400): 4205227110,
+      AccountKey(37080040, 0005555500): 0263602501, AccountKey(75040062, 0006008833): 0600883300,
+      AccountKey(12080000, 0007654321): 0144000700, AccountKey(70080000, 0007777777): 0443540000,
+      AccountKey(70040041, 0007777777): 0002136000, AccountKey(64140036, 0008907339): 0890733900,
+      AccountKey(70080000, 0009000000): 0319966601, AccountKey(61080006, 0009999999): 0202427500,
+      AccountKey(12080000, 0012121212): 4101725100, AccountKey(29080010, 0012412400): 0107502000,
+      AccountKey(34280032, 0014111935): 0645753800, AccountKey(38040007, 0043434343): 0001181635,
+      AccountKey(30080000, 0070000000): 0800005000, AccountKey(70080000, 0070000000): 0750055500,
+      AccountKey(44040037, 0111111111): 0003205655, AccountKey(70040041, 0400500500): 0004005005,
+      AccountKey(60080000, 0500500500): 0901581400, AccountKey(60040071, 0500500500): 0005127006,
+    ];
+
+    if let entry = mappings[AccountKey(bankCode.toInt()!, account.toInt()!)] {
+      return String(entry);
+    }
+    return account;
+  }
 }
 

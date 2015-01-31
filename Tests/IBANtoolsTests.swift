@@ -172,7 +172,7 @@ class IBANtoolsTests: XCTestCase {
     ("TR", "00061",       "00519786457841326",    "33")
   ];
 
-  func testDefault() {
+  func testIBANConversion() {
     XCTAssertEqual(IBANtools.convertToIBAN("", bankCode: "12345", countryCode: "xy").1, IBANToolsResult.IBANToolsWrongValue, "Default 1");
     XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "", countryCode: "xy").1, IBANToolsResult.IBANToolsWrongValue, "Default 2");
     XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "12345", countryCode: "").1, IBANToolsResult.IBANToolsWrongValue, "Default 3");
@@ -194,6 +194,11 @@ class IBANtoolsTests: XCTestCase {
       XCTAssertEqual(IBANtools.convertToIBAN(entry.account, bankCode: entry.bank, countryCode: entry.code).0, expected, "Default \(counter++)");
     }
 
+  }
+
+  func testBICDetermination () {
+    // Currently BICs can only be determined for german accounts.
+    XCTAssertEqual(IBANtools.bicForIBAN("VG96VPVG0000012345678901").result, IBANToolsResult.IBANToolsNoBic);
   }
 
 }
