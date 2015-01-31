@@ -46,8 +46,9 @@ internal class DERules : IBANRules {
     // We could use inout parameters, but Swift crashs if inout is used for the array closures.
     typealias RuleClosure = (String, String, Int) -> ConversionResult;
     static var rules: [RuleClosure] = [
-      DERules.rule0, DERules.rule1, DERules.rule2, DERules.rule3, DERules.rule4, DERules.rule5,
-      DERules.rule6, DERules.rule7, DERules.rule8, DERules.rule9, DERules.rule10, DERules.rule11,
+      DERules.defaultRule, DERules.rule1, DERules.rule2, DERules.rule3, DERules.defaultRuleWithAccountMapping,
+      DERules.rule5, DERules.defaultRuleWithAccountMapping, DERules.defaultRuleWithAccountMapping,
+      DERules.rule8, DERules.rule9, DERules.rule10, DERules.rule11,
       DERules.rule12, DERules.rule13, DERules.rule14, DERules.rule15, DERules.rule16, DERules.rule17,
       DERules.rule18, DERules.rule19, DERules.rule20, DERules.rule21, DERules.rule22, DERules.rule23,
       DERules.rule24, DERules.rule25, DERules.rule26, DERules.rule27, DERules.rule28, DERules.rule29,
@@ -175,10 +176,24 @@ internal class DERules : IBANRules {
   override class func bicForBankCode(bankCode: String) -> (bic: String, result: IBANToolsResult) {
     if let bank = bankCode.toInt() {
       if var institute = Static.institutes[bank] {
-        // Mappings for certain bank code clusters.
-        let cluster = (bankCode as NSString).substringWithRange(NSMakeRange(3, 3));
-        if cluster == "400" { // Commerzbank main.
-          institute.bic = "COBADEFFXXX";
+        var done = true;
+        switch bank {
+        case 10020200, 20120200, 25020200, 30020500, 51020000, 55020000, 60120200, 70220200, 86020200:
+          institute.bic = "BHFBDEFF500"; // BHF Bank AG
+
+        case 68351976, 68351557:
+          institute.bic = "SOLADES1SFH"; // Sparkasse Zell im Wiesental
+
+        default:
+          done = false;
+        }
+
+        if !done {
+          // Mappings for certain bank code clusters.
+          let cluster = (bankCode as NSString).substringWithRange(NSMakeRange(3, 3));
+          if cluster == "400" { // Commerzbank main.
+            institute.bic = "COBADEFFXXX";
+          }
         }
 
         return (institute.bic, .IBANToolsOK);
@@ -188,7 +203,17 @@ internal class DERules : IBANRules {
     return ("", .IBANToolsNoBic);
   }
 
-  private class func rule0(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+  private class func defaultRule(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  }
+
+  private class func defaultRuleWithAccountMapping(var account: String, bankCode: String, version: Int) ->
+    (String, String, String, IBANToolsResult) {
+
+    let (valid, account, result) = DEAccountCheck.isValidAccount(account, bankCode);
+    if !valid {
+      return (account, bankCode, "", result);
+    }
     return (account, bankCode, "", .IBANToolsDefaultIBAN);
   }
 
@@ -215,35 +240,6 @@ internal class DERules : IBANRules {
     }
 
     return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
-
-  private class func rule4(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    var newAccount = account;
-    switch account {
-    case "135":
-      newAccount = "0990021440";
-    case "1111":
-      newAccount = "6600012020";
-    case "1900":
-      newAccount = "0920019005";
-    case "7878":
-      newAccount = "0780008006";
-    case "8888":
-      newAccount = "0250030942";
-    case "9595":
-      newAccount = "1653524703";
-    case "97097":
-      newAccount = "0013044150";
-    case "112233":
-      newAccount = "0630025819";
-    case "336666":
-      newAccount = "6604058903";
-    case "484848":
-      newAccount = "0920018963";
-    default:
-      break;
-    }
-    return (newAccount, bankCode, "", .IBANToolsDefaultIBAN);
   }
 
   private class func rule5(var account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
@@ -303,23 +299,26 @@ internal class DERules : IBANRules {
     return (account, bankCode, "", .IBANToolsDefaultIBAN);
   }
   
-  private class func rule6(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
-  
-  private class func rule7(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
-
   private class func rule8(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+    return (account, "50020200", "", .IBANToolsDefaultIBAN);
   }
 
-  private class func rule9(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  private class func rule9(var account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    let s = account as NSString;
+    if s.length == 10 && s.hasPrefix("1116") {
+      account = "3047" + s.substringFromIndex(4);
+    }
+    return (account, "68351557", "", .IBANToolsDefaultIBAN);
   }
 
-  private class func rule10(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+  private class func rule10(account: String, var bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
+    if bankCode == "50050222" {
+      bankCode = "50050201";
+    }
+    let (valid, account, result) = DEAccountCheck.isValidAccount(account, bankCode);
+    if !valid {
+      return (account, bankCode, "", result);
+    }
     return (account, bankCode, "", .IBANToolsDefaultIBAN);
   }
 

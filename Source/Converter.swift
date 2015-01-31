@@ -103,13 +103,13 @@ public class IBANtools {
    * Returns the BIC for a given bank code. Since there is no generic procedure to determine the BIC
    * this lookup only works for those countries with a specific implementation (DE atm).
    */
-  public class func bicForBankCode(bankCode: String, var countryCode: String) -> (bic: String, result: IBANToolsResult) {
-    var bankCodeNumber = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
-    if bankCodeNumber.utf16Count == 0 || countryCode.utf16Count != 2 {
+  public class func bicForBankCode(var bankCode: String, var countryCode: String) -> (bic: String, result: IBANToolsResult) {
+    bankCode = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
+    if bankCode.utf16Count == 0 || countryCode.utf16Count != 2 {
       return ("", .IBANToolsWrongValue);
     }
 
-    if containsInvalidChars(bankCodeNumber) {
+    if containsInvalidChars(bankCode) {
       return ("", .IBANToolsWrongValue);
     }
 
@@ -119,7 +119,7 @@ public class IBANtools {
       let clazz: AnyClass! = NSClassFromString(countryCode + "Rules");
       if clazz != nil {
         let rulesClass = clazz as IBANRules.Type;
-        return rulesClass.bicForBankCode(bankCodeNumber);
+        return rulesClass.bicForBankCode(bankCode);
       }
     }
 

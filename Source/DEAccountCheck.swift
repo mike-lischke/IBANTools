@@ -719,7 +719,7 @@ internal class DEAccountCheck : AccountCheck {
     // There's another switch for those method that may get a second chance.
     switch method {
     case "00", "08", "13", "30", "41", "45", "49", "59", "65", "67", "72", "74", "78", "79",
-    "80", "94", "A1", "A2", "A3", "A7", "C6", "C9":
+      "80", "94", "A1", "A2", "A3", "A7", "C6", "C9":
       if method == "80" && number10[2] == 9 {
         return (method51(number10), account, .IBANToolsOK, parameters.indices.check);
       }
@@ -1922,6 +1922,13 @@ internal class DEAccountCheck : AccountCheck {
   private class func checkSpecialAccount(account: String, _ bankCode: String) -> String {
     let mappings: [AccountKey: Int] = [ // bank code: pseudo account, real account
 
+      // Landesbank Berlin - Berliner Sparkasse
+      AccountKey(10050000, 135): 0990021440, AccountKey(10050000, 1111): 6600012020,
+      AccountKey(10050000, 1900): 0920019005, AccountKey(10050000, 7878): 0780008006,
+      AccountKey(10050000, 8888): 0250030942, AccountKey(10050000, 9595): 1653524703,
+      AccountKey(10050000, 97097): 0013044150, AccountKey(10050000, 112233): 0630025819,
+      AccountKey(10050000, 336666): 6604058903, AccountKey(10050000, 484848): 0920018963,
+
       // Commerzbank.
       AccountKey(30040000, 0000000036): 0002611036, AccountKey(47880031, 0000000050): 0519899900,
       AccountKey(47840065, 0000000050): 0001501030, AccountKey(47840065, 0000000055): 0001501030,
@@ -1971,6 +1978,32 @@ internal class DEAccountCheck : AccountCheck {
       AccountKey(30080000, 0070000000): 0800005000, AccountKey(70080000, 0070000000): 0750055500,
       AccountKey(44040037, 0111111111): 0003205655, AccountKey(70040041, 0400500500): 0004005005,
       AccountKey(60080000, 0500500500): 0901581400, AccountKey(60040071, 0500500500): 0005127006,
+
+      // Sparkasse München
+      AccountKey(70150000, 1111111): 20228888, AccountKey(70150000, 7777777): 903286003,
+      AccountKey(70150000, 34343434): 1000506517, AccountKey(70150000, 70000): 18180018,
+
+      // Sparkasse Köln/Bonn
+      AccountKey(37050198, 111): 1115, AccountKey(37050198, 221): 23002157,
+      AccountKey(37050198, 1888): 18882068, AccountKey(37050198, 2006): 1900668508,
+      AccountKey(37050198, 2626): 1900730100, AccountKey(37050198, 3004): 1900637016,
+      AccountKey(37050198, 3636): 23002447, AccountKey(37050198, 4000): 4028,
+      AccountKey(37050198, 4444): 17368, AccountKey(37050198, 5050): 73999,
+      AccountKey(37050198, 8888): 1901335750, AccountKey(37050198, 30000): 9992959,
+      AccountKey(37050198, 43430): 1901693331, AccountKey(37050198, 46664): 1900399856,
+      AccountKey(37050198, 55555): 34407379, AccountKey(37050198, 102030): 1900480466,
+      AccountKey(37050198, 151515): 57762957, AccountKey(37050198, 222222): 2222222,
+      AccountKey(37050198, 300000): 9992959, AccountKey(37050198, 333333): 33217,
+      AccountKey(37050198, 414141): 92817, AccountKey(37050198, 606060): 91025,
+      AccountKey(37050198, 909090): 90944, AccountKey(37050198, 2602024): 5602024,
+      AccountKey(37050198, 3000000): 9992959, AccountKey(37050198, 7777777): 2222222,
+      AccountKey(37050198, 8090100): 38901, AccountKey(37050198, 14141414): 43597665,
+      AccountKey(37050198, 15000023): 15002223, AccountKey(37050198, 15151515): 57762957,
+      AccountKey(37050198, 22222222): 2222222, AccountKey(37050198, 200820082): 1901783868,
+      AccountKey(37050198, 222220022): 2222222,
+
+      // Frankfurter Sparkasse
+      AccountKey(50050201, 2000): 222000, AccountKey(50050201, 800000): 180802,
     ];
 
     if let entry = mappings[AccountKey(bankCode.toInt()!, account.toInt()!)] {
