@@ -1929,7 +1929,7 @@ internal class DEAccountCheck : AccountCheck {
       AccountKey(10050000, 97097): 0013044150, AccountKey(10050000, 112233): 0630025819,
       AccountKey(10050000, 336666): 6604058903, AccountKey(10050000, 484848): 0920018963,
 
-      // Commerzbank.
+      // Commerzbank
       AccountKey(30040000, 0000000036): 0002611036, AccountKey(47880031, 0000000050): 0519899900,
       AccountKey(47840065, 0000000050): 0001501030, AccountKey(47840065, 0000000055): 0001501030,
       AccountKey(70080000, 0000000094): 0928553201, AccountKey(70040041, 0000000094): 0002128080,
@@ -2004,6 +2004,32 @@ internal class DEAccountCheck : AccountCheck {
 
       // Frankfurter Sparkasse
       AccountKey(50050201, 2000): 222000, AccountKey(50050201, 800000): 180802,
+
+      // Sparkasse Krefeld
+      AccountKey(32050000, 1000): 8010001, AccountKey(32050000, 47800): 47803,
+
+      // Pax-Bank eG
+      AccountKey(37060193, 94): 3008888018, AccountKey(37060193, 556): 0000101010,
+      AccountKey(37060193, 888): 0031870011, AccountKey(37060193, 4040): 4003600101,
+      AccountKey(37060193, 5826): 1015826017, AccountKey(37060193, 25000): 0025000110,
+      AccountKey(37060193, 393393): 0033013019, AccountKey(37060193, 444555): 0032230016,
+      AccountKey(37060193, 603060): 6002919018, AccountKey(37060193, 2120041): 0002130041,
+      AccountKey(37060193, 80868086): 4007375013, AccountKey(37060193, 400569017): 4000569017,
+
+      // Kölner Bank eG
+      AccountKey(37160087, 300000): 18128012,
+
+      // Volksbank Bonn Rhein-Sieg
+      AccountKey(38060186, 100): 2009090013, AccountKey(38060186, 111): 2111111017,
+      AccountKey(38060186, 240): 2100240010, AccountKey(38060186, 4004): 2204004016,
+      AccountKey(38060186, 4444): 2044444014, AccountKey(38060186, 6060): 2016060014,
+      AccountKey(38060186, 102030): 1102030016, AccountKey(38060186, 333333): 2033333016,
+      AccountKey(38060186, 909090): 2009090013, AccountKey(38060186, 50005000): 5000500013,
+
+      // Aachener Bank eG
+      AccountKey(39060180, 556): 120440110, AccountKey(39060180, 5435435430): 543543543,
+      AccountKey(39060180, 2157): 121787016, AccountKey(39060180, 9800): 120800019,
+      AccountKey(39060180, 202050): 1221864014,
     ];
 
     if let entry = mappings[AccountKey(bankCode.toInt()!, account.toInt()!)] {

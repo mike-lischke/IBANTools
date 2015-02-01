@@ -48,9 +48,13 @@ internal class DERules : IBANRules {
     static var rules: [RuleClosure] = [
       DERules.defaultRule, DERules.rule1, DERules.rule2, DERules.rule3, DERules.defaultRuleWithAccountMapping,
       DERules.rule5, DERules.defaultRuleWithAccountMapping, DERules.defaultRuleWithAccountMapping,
-      DERules.rule8, DERules.rule9, DERules.rule10, DERules.rule11,
-      DERules.rule12, DERules.rule13, DERules.rule14, DERules.rule15, DERules.rule16, DERules.rule17,
-      DERules.rule18, DERules.rule19, DERules.rule20, DERules.rule21, DERules.rule22, DERules.rule23,
+      DERules.rule8, DERules.rule9, DERules.rule10,
+
+      DERules.defaultRuleWithAccountMapping, DERules.rule12, DERules.rule13, DERules.rule14,
+      DERules.defaultRuleWithAccountMapping, DERules.defaultRuleWithAccountMapping,
+      DERules.defaultRuleWithAccountMapping, DERules.defaultRuleWithAccountMapping, DERules.rule19, DERules.rule20,
+
+      DERules.rule21, DERules.rule22, DERules.rule23,
       DERules.rule24, DERules.rule25, DERules.rule26, DERules.rule27, DERules.rule28, DERules.rule29,
       DERules.rule30, DERules.rule31, DERules.rule32, DERules.rule33, DERules.rule34, DERules.rule35,
       DERules.rule36, DERules.rule37, DERules.rule38, DERules.rule39, DERules.rule40, DERules.rule41,
@@ -184,6 +188,15 @@ internal class DERules : IBANRules {
         case 68351976, 68351557:
           institute.bic = "SOLADES1SFH"; // Sparkasse Zell im Wiesental
 
+        case 50850049: // Landesbank Hessen-Thüringen Girozentrale
+          institute.bic = "HELADEFFXXX";
+
+        case 40050000, 44050000: // Landesbank Hessen-Thüringen Girozentrale
+          institute.bic = "WELADEDDXXX";
+
+        case 50120383, 50130100, 50220200, 70030800: // Bethmann Bank
+          institute.bic = "DELBDE33XXX";
+
         default:
           done = false;
         }
@@ -193,6 +206,10 @@ internal class DERules : IBANRules {
           let cluster = (bankCode as NSString).substringWithRange(NSMakeRange(3, 3));
           if cluster == "400" { // Commerzbank main.
             institute.bic = "COBADEFFXXX";
+          } else {
+            if (institute.bic as NSString).hasPrefix("DAAEDED") { // apoBank
+              institute.bic = "DAAEDEDDXXX";
+            }
           }
         }
 
@@ -315,47 +332,23 @@ internal class DERules : IBANRules {
     if bankCode == "50050222" {
       bankCode = "50050201";
     }
-    let (valid, account, result) = DEAccountCheck.isValidAccount(account, bankCode);
-    if !valid {
-      return (account, bankCode, "", result);
-    }
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
-
-  private class func rule11(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+    return defaultRuleWithAccountMapping(account, bankCode: bankCode, version: version);
   }
 
   private class func rule12(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+    return defaultRuleWithAccountMapping(account, bankCode: "50050000", version: version);
   }
 
   private class func rule13(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+    return defaultRuleWithAccountMapping(account, bankCode: "30050000", version: version);
   }
 
   private class func rule14(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
-
-  private class func rule15(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
-
-  private class func rule16(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
-
-  private class func rule17(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
-
-  private class func rule18(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+    return (account, "30060601", "", .IBANToolsDefaultIBAN);
   }
 
   private class func rule19(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+    return (account, "50120383", "", .IBANToolsDefaultIBAN);
   }
 
   private class func rule20(account: String, bankCode: String, version: Int) -> (String, String, String, IBANToolsResult) {
