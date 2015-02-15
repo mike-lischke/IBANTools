@@ -35,16 +35,41 @@ public enum IBANToolsResult {
   case IBANToolsNoChecksum  // No checksum computation/check by intention for bank accounts (always valid).
   case IBANToolsWrongValue  // One of the given parameters was wrong (0 for account/bank,
                             // no 2 letter country code, invalid chars etc.).
+
+  public func description() -> String {
+    switch self {
+    case IBANToolsDefaultIBAN:
+      return "IBANToolsDefaultIBAN";
+    case IBANToolsOK:
+      return "IBANToolsOK";
+    case IBANToolsNoBic:
+      return "IBANToolsNoBic";
+    case IBANToolsBadAccount:
+      return "IBANToolsBadAccount";
+    case IBANToolsBadBank:
+      return "IBANToolsBadBank";
+    case IBANToolsNoMethod:
+      return "IBANToolsNoMethod";
+    case IBANToolsNoConv:
+      return "IBANToolsNoConv";
+    case IBANToolsNoChecksum:
+      return "IBANToolsNoChecksum";
+    case IBANToolsWrongValue:
+      return "IBANToolsWrongValue";
+    default:
+      return "Invalid enum value";
+    }
+  }
 }
 
-internal typealias ConversionResult = (account: String, bankCode: String, iban: String, result: IBANToolsResult);
+internal typealias ConversionResult = (iban: String, result: IBANToolsResult);
 
 // Base classes for country specific rules.
 // Note: @objc and the NSObject base class are necessary to make dynamic instantiation working.
 @objc(IBANRules)
 internal class IBANRules : NSObject {
-  class func convertToIBAN(account: String, _ bankCode: String) -> ConversionResult {
-    return (account, bankCode, "", .IBANToolsNoConv);
+  class func convertToIBAN(inout account: String, inout _ bankCode: String) -> ConversionResult {
+    return ("", .IBANToolsNoConv);
   }
   class func bicForBankCode(bankCode: String) -> (bic: String, result: IBANToolsResult) {
     return ("", .IBANToolsNoBic);
@@ -53,8 +78,9 @@ internal class IBANRules : NSObject {
 
 @objc(AccountCheck)
 internal class AccountCheck : NSObject {
-  class func isValidAccount(account: String, _ bankCode: String) -> (valid: Bool, realAccount: String, result: IBANToolsResult) {
-    return (false, account, .IBANToolsNoMethod);
+  class func isValidAccount(inout account: String, inout _ bankCode: String, _ forIBAN: Bool) ->
+    (valid: Bool, result: IBANToolsResult) {
+    return (false, .IBANToolsNoMethod);
   }
 }
 
@@ -73,17 +99,17 @@ public class IBANtools {
    * This check involves institute's specific checksum rules.
    * Also returns the real account number if the given one is special (e.g. for donations).
    */
-  public class func isValidAccount(account: String, bankCode: String, var countryCode: String) ->
-    (valid: Bool, realAccount: String, result: IBANToolsResult) {
+  public class func isValidAccount(inout account: String, inout bankCode: String, var countryCode: String, forIBAN: Bool = false) ->
+    (valid: Bool, result: IBANToolsResult) {
 
-    var accountNumber = account.stringByReplacingOccurrencesOfString(" ", withString: "");
-    var bankCodeNumber = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
-    if accountNumber.utf16Count == 0 || bankCodeNumber.utf16Count == 0 || countryCode.utf16Count != 2 {
-      return (false, account, .IBANToolsWrongValue);
+    account = account.stringByReplacingOccurrencesOfString(" ", withString: "");
+    bankCode = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
+    if account.utf16Count == 0 || bankCode.utf16Count == 0 || countryCode.utf16Count != 2 {
+      return (false, .IBANToolsWrongValue);
     }
 
-    if containsInvalidChars(accountNumber) || containsInvalidChars(bankCodeNumber) {
-      return (false, account, .IBANToolsWrongValue);
+    if containsInvalidChars(account) || containsInvalidChars(bankCode) {
+      return (false, .IBANToolsWrongValue);
     }
 
     countryCode = countryCode.uppercaseString;
@@ -92,11 +118,11 @@ public class IBANtools {
       let clazz: AnyClass! = NSClassFromString(countryCode + "AccountCheck");
       if clazz != nil {
         let rulesClass = clazz as AccountCheck.Type;
-        return rulesClass.isValidAccount(accountNumber, bankCodeNumber);
+        return rulesClass.isValidAccount(&account, &bankCode, forIBAN);
       }
     }
 
-    return (true, account, .IBANToolsOK); // For any country for which we have no checksum check assume everything is ok.
+    return (true, .IBANToolsOK); // For any country for which we have no checksum check assume everything is ok.
   }
 
   /**
@@ -144,16 +170,17 @@ public class IBANtools {
   * for a given account number (e.g. for accounts no longer in use).
   * Notes:
   *   - Values can contain space chars. They are automatically removed.
+  *   - Switching off account validation is not recommended as often accounts and/or bank codes must be
+  *     replaced by others which happens during account validation. Essentially keep this on except for
+  *     unit testing with random account numbers instead of real ones.
   */
-  public class func convertToIBAN(var account: String, var bankCode: String, var countryCode: String,
+  public class func convertToIBAN(inout account: String, inout bankCode: String, var countryCode: String,
     validateAccount: Bool = true) -> (iban: String, result: IBANToolsResult) {
       if validateAccount {
-        let accountResult = isValidAccount(account, bankCode: bankCode, countryCode: countryCode)
-        if !accountResult.0 {
+        let accountResult = isValidAccount(&account, bankCode: &bankCode, countryCode: countryCode, forIBAN: true)
+        if !accountResult.valid {
           return ("", accountResult.result);
         }
-
-        account = accountResult.realAccount;
       }
 
       account = account.stringByReplacingOccurrencesOfString(" ", withString: "");
@@ -176,14 +203,7 @@ public class IBANtools {
         let clazz: AnyClass! = NSClassFromString(countryCode + "Rules");
         if clazz != nil {
           let rulesClass = clazz as IBANRules.Type;
-          let localResult = rulesClass.convertToIBAN(account, bankCode);
-          result.0 = localResult.iban;
-          result.1 = localResult.result;
-
-          // These 2 values might have been mapped to other values, to be used with the
-          // standard conversion rule.
-          account = localResult.account;
-          bankCode = localResult.bankCode;
+          result = rulesClass.convertToIBAN(&account, &bankCode);
         }
 
         // Do length check *after* the country specific rules. They might rely on the exact

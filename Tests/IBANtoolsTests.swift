@@ -172,11 +172,17 @@ class IBANtoolsTests: XCTestCase {
     ("TR", "00061",       "00519786457841326",    "33")
   ];
 
+  func testAndCompare(var account: String, var _ bank: String, _ country: String,
+    _ expected: (String, IBANToolsResult), _ checkAccount: Bool = true) -> Bool {
+    let result = IBANtools.convertToIBAN(&account, bankCode: &bank, countryCode: country, validateAccount: checkAccount);
+    return result.0 == expected.0 && result.1 == expected.1;
+  }
+  
   func testIBANConversion() {
-    XCTAssertEqual(IBANtools.convertToIBAN("", bankCode: "12345", countryCode: "xy").1, IBANToolsResult.IBANToolsWrongValue, "Default 1");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "", countryCode: "xy").1, IBANToolsResult.IBANToolsWrongValue, "Default 2");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "12345", countryCode: "").1, IBANToolsResult.IBANToolsWrongValue, "Default 3");
-    XCTAssertEqual(IBANtools.convertToIBAN("12345", bankCode: "12345", countryCode: "µ", validateAccount: false).1, IBANToolsResult.IBANToolsWrongValue, "Default 4");
+    XCTAssert(testAndCompare("", "12345", "xy", ("", .IBANToolsWrongValue)),  "Default 1");
+    XCTAssert(testAndCompare("12345", "", "xy", ("", .IBANToolsWrongValue)), "Default 2");
+    XCTAssert(testAndCompare("12345", "12345", "", ("", .IBANToolsWrongValue)), "Default 3");
+    XCTAssert(testAndCompare("12345", "12345", "µ", ("", .IBANToolsWrongValue), false), "Default 4");
 
     var counter = 5;
     for entry in testData {
@@ -191,7 +197,7 @@ class IBANtoolsTests: XCTestCase {
         }
       }
       let expected = entry.code + entry.checksum + bankCodeNumber + accountNumber;
-      XCTAssertEqual(IBANtools.convertToIBAN(entry.account, bankCode: entry.bank, countryCode: entry.code).0, expected, "Default \(counter++)");
+      XCTAssert(testAndCompare(entry.account, entry.bank, entry.code, (expected, .IBANToolsDefaultIBAN)), "Default \(counter++)");
     }
 
   }

@@ -30,24 +30,45 @@ class IBANtoolsDETests: XCTestCase {
     super.tearDown()
   }
 
-  func testAndCompare(account: String, _ bank: String, _ country: String,
+  func testAndCompare(var account: String, var _ bank: String, _ country: String,
     _ expected: (String, IBANToolsResult), _ checkAccount: Bool = false) -> Bool {
     // Account validation is switched off for dummy account numbers used in the tests..
-    let result = IBANtools.convertToIBAN(account, bankCode: bank, countryCode: country, validateAccount: checkAccount);
-    return result.0 == expected.0 && result.1 == expected.1;
+    let conversionResult = IBANtools.convertToIBAN(&account, bankCode: &bank, countryCode: country, validateAccount: checkAccount);
+    let result = conversionResult.0 == expected.0 && conversionResult.1 == expected.1;
+    if !result {
+      println("\naccount: \(account), bank: \(bank), expected: (\(expected.0), " +
+        "\(expected.1.description())), actual: (\(conversionResult.iban), " +
+        "\(conversionResult.result.description()))\n");
+    }
+    return result;
   }
 
-  func testAndCompare(account: String, _ bank: String, _ country: String,
+  func testAndCompare(var account: String, var _ bank: String, _ country: String,
     _ expected: (iban: String, bic: String, ibanResult: IBANToolsResult, bicResult: IBANToolsResult),
     _ checkAccount: Bool = false) -> Bool {
 
-      let ibanResult = IBANtools.convertToIBAN(account, bankCode: bank, countryCode: country, validateAccount: checkAccount);
+      let ibanResult = IBANtools.convertToIBAN(&account, bankCode: &bank, countryCode: country, validateAccount: checkAccount);
       if ibanResult.iban.utf16Count == 0 {
-        return (ibanResult.iban == expected.iban) && (ibanResult.result == expected.ibanResult);
+        let result = (ibanResult.iban == expected.iban) && (ibanResult.result == expected.ibanResult);
+        if !result {
+          println("\naccount: \(account), bank: \(bank), expected: (\(expected.0), " +
+            "\(expected.ibanResult.description())), actual: (\(ibanResult.iban), " +
+            "\(ibanResult.result.description()))\n");
+        }
+        return result;
       }
+
       let bicResult = IBANtools.bicForBankCode(bank, countryCode: country);
-      return (ibanResult.iban == expected.iban) && (ibanResult.result == expected.ibanResult) &&
+      let result = (ibanResult.iban == expected.iban) && (ibanResult.result == expected.ibanResult) &&
         (bicResult.bic == expected.bic) && (bicResult.result == expected.bicResult);
+
+      if !result {
+        println("\naccount: \(account), bank: \(bank), expected: (\(expected.iban), \(expected.bic), " +
+          "\(expected.ibanResult.description()), \(expected.bicResult.description())), " +
+          "actual: (\(ibanResult.iban), \(bicResult.bic), \(ibanResult.result.description()), " +
+          "\(bicResult.result.description()))\n");
+      }
+      return result;
   }
 
   func testIBANs() {
@@ -270,5 +291,239 @@ class IBANtoolsDETests: XCTestCase {
     XCTAssert(testAndCompare("20475000", "50220200", "de", ("DE82501203830020475000", "DELBDE33XXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "19.3");
     XCTAssert(testAndCompare("20475000", "70030800", "de", ("DE82501203830020475000", "DELBDE33XXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "19.4");
 
+    // Rule 0020.
+    XCTAssert(testAndCompare("9999", "50070010", "de", ("DE80500700100092777202", .IBANToolsDefaultIBAN), true), "20.1");
+    XCTAssert(testAndCompare("38150900", "23070700", "de", ("DE07230707000038150900", .IBANToolsDefaultIBAN), true), "20.2");
+    XCTAssert(testAndCompare("600103660", "23070700", "de", ("DE64230707000600103660", .IBANToolsDefaultIBAN), true), "20.3");
+    XCTAssert(testAndCompare("39101181", "23070700", "de", ("DE84230707000039101181", .IBANToolsDefaultIBAN), true), "20.4");
+    XCTAssert(testAndCompare("117", "23070700", "de", ("", .IBANToolsNoConv), true), "20.5"); // Account valid but too short.
+    XCTAssert(testAndCompare("500", "23070700", "de", ("", .IBANToolsBadAccount), true), "20.6"); // Doc says this is a valid account, but it isn't (according to account rule 63).
+    XCTAssert(testAndCompare("1800", "23070700", "de", ("", .IBANToolsNoConv), true), "20.7"); // Account valid but too short.
+    XCTAssert(testAndCompare("56002", "23070700", "de", ("DE19230707000005600200", .IBANToolsDefaultIBAN), true), "20.8");
+    XCTAssert(testAndCompare("752691", "23070700", "de", ("DE94230707000075269100", .IBANToolsDefaultIBAN), true), "20.9");
+    XCTAssert(testAndCompare("3700246", "23070700", "de", ("DE36230707000003700246", .IBANToolsDefaultIBAN), true), "20.10");
+    XCTAssert(testAndCompare("6723143", "23070700", "de", ("DE42230707000006723143", .IBANToolsDefaultIBAN), true), "20.11");
+    XCTAssert(testAndCompare("5719083", "23070700", "de", ("DE63230707000571908300", .IBANToolsDefaultIBAN), true), "20.12");
+    XCTAssert(testAndCompare("8007759", "23070700", "de", ("DE21230707000800775900", .IBANToolsDefaultIBAN), true), "20.13");
+    XCTAssert(testAndCompare("3500022", "23070700", "de", ("DE94230707000350002200", .IBANToolsDefaultIBAN), true), "20.14");
+    XCTAssert(testAndCompare("9000043", "23070700", "de", ("DE90230707000900004300", .IBANToolsDefaultIBAN), true), "20.15");
+    XCTAssert(testAndCompare("94012341", "23070700", "de", ("", .IBANToolsBadAccount), true), "20.16");
+    XCTAssert(testAndCompare("123456700", "23070700", "de", ("", .IBANToolsBadAccount), true), "20.17");
+    XCTAssert(testAndCompare("5073321010", "23070700", "de", ("", .IBANToolsBadAccount), true), "20.18");
+    XCTAssert(testAndCompare("1415900000", "23070700", "de", ("", .IBANToolsBadAccount), true), "20.19");
+    XCTAssert(testAndCompare("1000300004", "23070700", "de", ("", .IBANToolsBadAccount), true), "20.20");
+    XCTAssert(testAndCompare("94012341", "76026000", "de", ("", .IBANToolsNoConv), true), "20.21"); // Account valid but not allowed for IBAN.
+    XCTAssert(testAndCompare("5073321010", "76026000", "de", ("", .IBANToolsNoConv), true), "20.22"); // ditto
+    XCTAssert(testAndCompare("1234517892", "76026000", "de", ("", .IBANToolsBadAccount), true), "20.23");
+    XCTAssert(testAndCompare("987614325", "76026000", "de", ("", .IBANToolsBadAccount), true), "20.24");
+
+    // Rule 0021.
+    XCTAssert(testAndCompare("305200", "350 200 30", "de", ("DE81360200300000305200", "NBAGDE3EXXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "21.1");
+    XCTAssert(testAndCompare("900826", "350 200 30", "de", ("DE03360200300000900826", "NBAGDE3EXXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "21.2");
+    XCTAssert(testAndCompare("705020", "350 200 30", "de", ("DE71360200300000705020", "NBAGDE3EXXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "21.3");
+    XCTAssert(testAndCompare("9197354", "350 200 30", "de", ("DE18360200300009197354", "NBAGDE3EXXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "21.4");
+
+    // Rule 0022.
+    XCTAssert(testAndCompare("1111111", "43060967", "de", ("DE22430609672222200000", .IBANToolsDefaultIBAN), true), "22.1");
+
+    // Rule 0023.
+    XCTAssert(testAndCompare("700", "265 900 25", "de", ("DE76265900251000700800", .IBANToolsDefaultIBAN), true), "23.1");
+
+    // Rule 0024.
+    XCTAssert(testAndCompare("94", "36060295", "de", ("DE48360602950000001694", .IBANToolsDefaultIBAN), false), "24.1");
+    XCTAssert(testAndCompare("248", "36060295", "de", ("DE03360602950000017248", .IBANToolsDefaultIBAN), true), "24.2");
+    XCTAssert(testAndCompare("345", "36060295", "de", ("DE03360602950000017345", .IBANToolsDefaultIBAN), false), "24.3");
+    XCTAssert(testAndCompare("400", "36060295", "de", ("DE75360602950000014400", .IBANToolsDefaultIBAN), true), "24.4");
+
+    // Rule 0025.
+    XCTAssert(testAndCompare("2777939", "60250184", "de", ("DE81600501010002777939", .IBANToolsDefaultIBAN), false), "25.1");
+    XCTAssert(testAndCompare("7893500686", "644 502 88", "de", ("DE80600501017893500686", .IBANToolsDefaultIBAN), true), "25.2");
+
+    // Rule 0026.
+    XCTAssert(testAndCompare("55111", "35060190", "de", ("DE21350601900000055111", .IBANToolsDefaultIBAN), false), "26.1");
+    XCTAssert(testAndCompare("8090100", "35060190", "de", ("DE86350601900008090100", .IBANToolsDefaultIBAN), true), "26.2");
+
+    // Rule 0027.
+    XCTAssert(testAndCompare("3333", "32060362", "de", ("DE47320603620000003333", .IBANToolsDefaultIBAN), false), "27.1");
+    XCTAssert(testAndCompare("4444", "32060362", "de", ("DE23320603620000004444", .IBANToolsDefaultIBAN), true), "27.2");
+
+    // Rule 0028.
+    XCTAssert(testAndCompare("17095", "250 502 99", "de", ("DE69250501800000017095", "SPKHDE2HXXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "28.1");
+
+    // Rule 0029.
+    XCTAssert(testAndCompare("2600123456", "51210800", "de", ("DE02512108000260123456", .IBANToolsDefaultIBAN), false), "29.1");
+    XCTAssert(testAndCompare("1410123456", "51210800", "de", ("DE35512108000141123456", .IBANToolsDefaultIBAN), true), "29.2");
+    XCTAssert(testAndCompare("123456", "51210800", "de", ("DE04512108000000123456", .IBANToolsDefaultIBAN), false), "29.3");
+
+    // Rule 0030.
+    XCTAssert(testAndCompare("1718190", "13091054", "de", ("DE47130910540001718190", .IBANToolsDefaultIBAN), true), "30.1");
+    XCTAssert(testAndCompare("22000225", "13091054", "de", ("DE57130910540022000225", .IBANToolsDefaultIBAN), true), "30.2");
+    XCTAssert(testAndCompare("49902271", "13091054", "de", ("DE68130910540049902271", .IBANToolsDefaultIBAN), true), "30.3");
+    XCTAssert(testAndCompare("49902280", "13091054", "de", ("DE19130910540049902280", .IBANToolsDefaultIBAN), true), "30.4");
+    XCTAssert(testAndCompare("101680029", "13091054", "de", ("DE07130910540101680029", .IBANToolsDefaultIBAN), true), "30.5");
+    XCTAssert(testAndCompare("104200028", "13091054", "de", ("DE05130910540104200028", .IBANToolsDefaultIBAN), true), "30.6");
+    XCTAssert(testAndCompare("106200025", "13091054", "de", ("DE83130910540106200025", .IBANToolsDefaultIBAN), true), "30.7");
+    XCTAssert(testAndCompare("108000171", "13091054", "de", ("DE28130910540108000171", .IBANToolsDefaultIBAN), true), "30.8");
+    XCTAssert(testAndCompare("108000279", "13091054", "de", ("DE22130910540108000279", .IBANToolsDefaultIBAN), true), "30.9");
+    XCTAssert(testAndCompare("108001364", "13091054", "de", ("DE21130910540108001364", .IBANToolsDefaultIBAN), true), "30.10");
+    XCTAssert(testAndCompare("108001801", "13091054", "de", ("DE56130910540108001801", .IBANToolsDefaultIBAN), true), "30.11");
+    XCTAssert(testAndCompare("108002514", "13091054", "de", ("DE11130910540108002514", .IBANToolsDefaultIBAN), true), "30.12");
+    XCTAssert(testAndCompare("300008542", "13091054", "de", ("DE24130910540300008542", .IBANToolsDefaultIBAN), true), "30.13");
+    XCTAssert(testAndCompare("9130099995", "13091054", "de", ("DE69130910549130099995", .IBANToolsDefaultIBAN), true), "30.14");
+    XCTAssert(testAndCompare("9130500002", "13091054", "de", ("DE54130910549130500002", .IBANToolsDefaultIBAN), true), "30.15");
+    XCTAssert(testAndCompare("9131100008", "13091054", "de", ("DE56130910549131100008", .IBANToolsDefaultIBAN), true), "30.16");
+    XCTAssert(testAndCompare("9131600000", "13091054", "de", ("DE53130910549131600000", .IBANToolsDefaultIBAN), true), "30.17");
+    XCTAssert(testAndCompare("9131610006", "13091054", "de", ("DE36130910549131610006", .IBANToolsDefaultIBAN), true), "30.18");
+    XCTAssert(testAndCompare("9132200006", "13091054", "de", ("DE55130910549132200006", .IBANToolsDefaultIBAN), true), "30.19");
+    XCTAssert(testAndCompare("9132400005", "13091054", "de", ("DE72130910549132400005", .IBANToolsDefaultIBAN), true), "30.20");
+    XCTAssert(testAndCompare("9132600004", "13091054", "de", ("DE89130910549132600004", .IBANToolsDefaultIBAN), true), "30.21");
+    XCTAssert(testAndCompare("9132700017", "13091054", "de", ("DE24130910549132700017", .IBANToolsDefaultIBAN), true), "30.22");
+    XCTAssert(testAndCompare("9132700025", "13091054", "de", ("DE02130910549132700025", .IBANToolsDefaultIBAN), true), "30.23");
+    XCTAssert(testAndCompare("9132700033", "13091054", "de", ("DE77130910549132700033", .IBANToolsDefaultIBAN), true), "30.24");
+    XCTAssert(testAndCompare("9132700041", "13091054", "de", ("DE55130910549132700041", .IBANToolsDefaultIBAN), true), "30.25");
+    XCTAssert(testAndCompare("9133200700", "13091054", "de", ("DE85130910549133200700", .IBANToolsDefaultIBAN), true), "30.26");
+    XCTAssert(testAndCompare("9133200735", "13091054", "de", ("DE13130910549133200735", .IBANToolsDefaultIBAN), true), "30.27");
+    XCTAssert(testAndCompare("9133200743", "13091054", "de", ("DE88130910549133200743", .IBANToolsDefaultIBAN), true), "30.28");
+    XCTAssert(testAndCompare("9133200751", "13091054", "de", ("DE66130910549133200751", .IBANToolsDefaultIBAN), true), "30.29");
+    XCTAssert(testAndCompare("9133200786", "13091054", "de", ("DE91130910549133200786", .IBANToolsDefaultIBAN), true), "30.30");
+    XCTAssert(testAndCompare("9133200808", "13091054", "de", ("DE79130910549133200808", .IBANToolsDefaultIBAN), true), "30.31");
+    XCTAssert(testAndCompare("9133200816", "13091054", "de", ("DE57130910549133200816", .IBANToolsDefaultIBAN), true), "30.32");
+    XCTAssert(testAndCompare("9133200824", "13091054", "de", ("DE35130910549133200824", .IBANToolsDefaultIBAN), true), "30.33");
+    XCTAssert(testAndCompare("9133200832", "13091054", "de", ("DE13130910549133200832", .IBANToolsDefaultIBAN), true), "30.34");
+    XCTAssert(testAndCompare("9136700003", "13091054", "de", ("DE08130910549136700003", .IBANToolsDefaultIBAN), true), "30.35");
+    XCTAssert(testAndCompare("9177300010", "13091054", "de", ("DE20130910549177300010", .IBANToolsDefaultIBAN), true), "30.36");
+    XCTAssert(testAndCompare("9177300060", "13091054", "de", ("DE28130910549177300060", .IBANToolsDefaultIBAN), true), "30.37");
+    XCTAssert(testAndCompare("9198100002", "13091054", "de", ("DE69130910549198100002", .IBANToolsDefaultIBAN), true), "30.38");
+    XCTAssert(testAndCompare("9198200007", "13091054", "de", ("DE26130910549198200007", .IBANToolsDefaultIBAN), true), "30.39");
+    XCTAssert(testAndCompare("9198200104", "13091054", "de", ("DE26130910549198200104", .IBANToolsDefaultIBAN), true), "30.40");
+    XCTAssert(testAndCompare("9198300001", "13091054", "de", ("DE86130910549198300001", .IBANToolsDefaultIBAN), true), "30.41");
+    XCTAssert(testAndCompare("9331300141", "13091054", "de", ("DE35130910549331300141", .IBANToolsDefaultIBAN), true), "30.42");
+    XCTAssert(testAndCompare("9331300150", "13091054", "de", ("DE83130910549331300150", .IBANToolsDefaultIBAN), true), "30.43");
+    XCTAssert(testAndCompare("9331401010", "13091054", "de", ("DE41130910549331401010", .IBANToolsDefaultIBAN), true), "30.44");
+    XCTAssert(testAndCompare("9331401061", "13091054", "de", ("DE22130910549331401061", .IBANToolsDefaultIBAN), true), "30.45");
+    XCTAssert(testAndCompare("9349010000", "13091054", "de", ("DE95130910549349010000", .IBANToolsDefaultIBAN), true), "30.46");
+    XCTAssert(testAndCompare("9349100000", "13091054", "de", ("DE42130910549349100000", .IBANToolsDefaultIBAN), true), "30.47");
+    XCTAssert(testAndCompare("9360500001", "13091054", "de", ("DE27130910549360500001", .IBANToolsDefaultIBAN), true), "30.48");
+    XCTAssert(testAndCompare("9364902007", "13091054", "de", ("DE62130910549364902007", .IBANToolsDefaultIBAN), true), "30.49");
+    XCTAssert(testAndCompare("9366101001", "13091054", "de", ("DE04130910549366101001", .IBANToolsDefaultIBAN), true), "30.50");
+    XCTAssert(testAndCompare("9366104000", "13091054", "de", ("DE26130910549366104000", .IBANToolsDefaultIBAN), true), "30.51");
+    XCTAssert(testAndCompare("9370620030", "13091054", "de", ("DE96130910549370620030", .IBANToolsDefaultIBAN), true), "30.52");
+    XCTAssert(testAndCompare("9370620080", "13091054", "de", ("DE07130910549370620080", .IBANToolsDefaultIBAN), true), "30.53");
+    XCTAssert(testAndCompare("9371900010", "13091054", "de", ("DE87130910549371900010", .IBANToolsDefaultIBAN), true), "30.54");
+    XCTAssert(testAndCompare("9373600005", "13091054", "de", ("DE40130910549373600005", .IBANToolsDefaultIBAN), true), "30.55");
+    XCTAssert(testAndCompare("9402900021", "13091054", "de", ("DE83130910549402900021", .IBANToolsDefaultIBAN), true), "30.56");
+    XCTAssert(testAndCompare("9605110000", "13091054", "de", ("DE94130910549605110000", .IBANToolsDefaultIBAN), true), "30.57");
+    XCTAssert(testAndCompare("9614001000", "13091054", "de", ("DE52130910549614001000", .IBANToolsDefaultIBAN), true), "30.58");
+    XCTAssert(testAndCompare("9615000016", "13091054", "de", ("DE89130910549615000016", .IBANToolsDefaultIBAN), true), "30.59");
+    XCTAssert(testAndCompare("9615010003", "13091054", "de", ("DE03130910549615010003", .IBANToolsDefaultIBAN), true), "30.60");
+    XCTAssert(testAndCompare("9618500036", "13091054", "de", ("DE53130910549618500036", .IBANToolsDefaultIBAN), true), "30.61");
+    XCTAssert(testAndCompare("9631020000", "13091054", "de", ("DE11130910549631020000", .IBANToolsDefaultIBAN), true), "30.62");
+    XCTAssert(testAndCompare("9632600051", "13091054", "de", ("DE10130910549632600051", .IBANToolsDefaultIBAN), true), "30.63");
+    XCTAssert(testAndCompare("9632600060", "13091054", "de", ("DE58130910549632600060", .IBANToolsDefaultIBAN), true), "30.64");
+    XCTAssert(testAndCompare("9635000012", "13091054", "de", ("DE70130910549635000012", .IBANToolsDefaultIBAN), true), "30.65");
+    XCTAssert(testAndCompare("9635000020", "13091054", "de", ("DE48130910549635000020", .IBANToolsDefaultIBAN), true), "30.66");
+    XCTAssert(testAndCompare("9635701002", "13091054", "de", ("DE77130910549635701002", .IBANToolsDefaultIBAN), true), "30.67");
+    XCTAssert(testAndCompare("9636010003", "13091054", "de", ("DE20130910549636010003", .IBANToolsDefaultIBAN), true), "30.68");
+    XCTAssert(testAndCompare("9636013002", "13091054", "de", ("DE42130910549636013002", .IBANToolsDefaultIBAN), true), "30.69");
+    XCTAssert(testAndCompare("9636016001", "13091054", "de", ("DE64130910549636016001", .IBANToolsDefaultIBAN), true), "30.70");
+    XCTAssert(testAndCompare("9636018004", "13091054", "de", ("DE12130910549636018004", .IBANToolsDefaultIBAN), true), "30.71");
+    XCTAssert(testAndCompare("9636019000", "13091054", "de", ("DE86130910549636019000", .IBANToolsDefaultIBAN), true), "30.72");
+    XCTAssert(testAndCompare("9636022001", "13091054", "de", ("DE54130910549636022001", .IBANToolsDefaultIBAN), true), "30.73");
+    XCTAssert(testAndCompare("9636024004", "13091054", "de", ("DE02130910549636024004", .IBANToolsDefaultIBAN), true), "30.74");
+    XCTAssert(testAndCompare("9636025000", "13091054", "de", ("DE76130910549636025000", .IBANToolsDefaultIBAN), true), "30.75");
+    XCTAssert(testAndCompare("9636027003", "13091054", "de", ("DE24130910549636027003", .IBANToolsDefaultIBAN), true), "30.76");
+    XCTAssert(testAndCompare("9636028000", "13091054", "de", ("DE71130910549636028000", .IBANToolsDefaultIBAN), true), "30.77");
+    XCTAssert(testAndCompare("9636045001", "13091054", "de", ("DE48130910549636045001", .IBANToolsDefaultIBAN), true), "30.78");
+    XCTAssert(testAndCompare("9636048000", "13091054", "de", ("DE70130910549636048000", .IBANToolsDefaultIBAN), true), "30.79");
+    XCTAssert(testAndCompare("9636051001", "13091054", "de", ("DE38130910549636051001", .IBANToolsDefaultIBAN), true), "30.80");
+    XCTAssert(testAndCompare("9636053004", "13091054", "de", ("DE83130910549636053004", .IBANToolsDefaultIBAN), true), "30.81");
+    XCTAssert(testAndCompare("9636120003", "13091054", "de", ("DE63130910549636120003", .IBANToolsDefaultIBAN), true), "30.82");
+    XCTAssert(testAndCompare("9636140004", "13091054", "de", ("DE35130910549636140004", .IBANToolsDefaultIBAN), true), "30.83");
+    XCTAssert(testAndCompare("9636150000", "13091054", "de", ("DE94130910549636150000", .IBANToolsDefaultIBAN), true), "30.84");
+    XCTAssert(testAndCompare("9636320002", "13091054", "de", ("DE80130910549636320002", .IBANToolsDefaultIBAN), true), "30.85");
+    XCTAssert(testAndCompare("9636700000", "13091054", "de", ("DE18130910549636700000", .IBANToolsDefaultIBAN), true), "30.86");
+    XCTAssert(testAndCompare("9638120000", "13091054", "de", ("DE44130910549638120000", .IBANToolsDefaultIBAN), true), "30.87");
+    XCTAssert(testAndCompare("9639401100", "13091054", "de", ("DE59130910549639401100", .IBANToolsDefaultIBAN), true), "30.88");
+    XCTAssert(testAndCompare("9639801001", "13091054", "de", ("DE93130910549639801001", .IBANToolsDefaultIBAN), true), "30.89");
+    XCTAssert(testAndCompare("9670010004", "13091054", "de", ("DE39130910549670010004", .IBANToolsDefaultIBAN), true), "30.90");
+    XCTAssert(testAndCompare("9680610000", "13091054", "de", ("DE05130910549680610000", .IBANToolsDefaultIBAN), true), "30.91");
+    XCTAssert(testAndCompare("9705010002", "13091054", "de", ("DE89130910549705010002", .IBANToolsDefaultIBAN), true), "30.92");
+    XCTAssert(testAndCompare("9705403004", "13091054", "de", ("DE59130910549705403004", .IBANToolsDefaultIBAN), true), "30.93");
+    XCTAssert(testAndCompare("9705404000", "13091054", "de", ("DE36130910549705404000", .IBANToolsDefaultIBAN), true), "30.94");
+    XCTAssert(testAndCompare("9705509996", "13091054", "de", ("DE32130910549705509996", .IBANToolsDefaultIBAN), true), "30.95");
+    XCTAssert(testAndCompare("9707901001", "13091054", "de", ("DE83130910549707901001", .IBANToolsDefaultIBAN), true), "30.96");
+    XCTAssert(testAndCompare("9736010000", "13091054", "de", ("DE48130910549736010000", .IBANToolsDefaultIBAN), true), "30.97");
+    XCTAssert(testAndCompare("9780100050", "13091054", "de", ("DE34130910549780100050", .IBANToolsDefaultIBAN), true), "30.98");
+    XCTAssert(testAndCompare("9791000030", "13091054", "de", ("DE29130910549791000030", .IBANToolsDefaultIBAN), true), "30.99");
+    XCTAssert(testAndCompare("9990001003", "13091054", "de", ("DE86130910549990001003", .IBANToolsDefaultIBAN), true), "30.100");
+    XCTAssert(testAndCompare("9990001100", "13091054", "de", ("DE86130910549990001100", .IBANToolsDefaultIBAN), true), "30.101");
+    XCTAssert(testAndCompare("9990002000", "13091054", "de", ("DE36130910549990002000", .IBANToolsDefaultIBAN), true), "30.102");
+    XCTAssert(testAndCompare("9990004002", "13091054", "de", ("DE11130910549990004002", .IBANToolsDefaultIBAN), true), "30.103");
+    XCTAssert(testAndCompare("9991020001", "13091054", "de", ("DE26130910549991020001", .IBANToolsDefaultIBAN), true), "30.104");
+    XCTAssert(testAndCompare("9991040002", "13091054", "de", ("DE95130910549991040002", .IBANToolsDefaultIBAN), true), "30.05");
+    XCTAssert(testAndCompare("9991060003", "13091054", "de", ("DE67130910549991060003", .IBANToolsDefaultIBAN), true), "30.106");
+    XCTAssert(testAndCompare("9999999993", "13091054", "de", ("DE84130910549999999993", .IBANToolsDefaultIBAN), true), "30.107");
+    XCTAssert(testAndCompare("9999999994", "13091054", "de", ("DE57130910549999999994", .IBANToolsDefaultIBAN), true), "30.108");
+    XCTAssert(testAndCompare("9999999995", "13091054", "de", ("DE30130910549999999995", .IBANToolsDefaultIBAN), true), "30.109");
+    XCTAssert(testAndCompare("9999999996", "13091054", "de", ("DE03130910549999999996", .IBANToolsDefaultIBAN), true), "30.110");
+    XCTAssert(testAndCompare("9999999997", "13091054", "de", ("DE73130910549999999997", .IBANToolsDefaultIBAN), true), "30.111");
+    XCTAssert(testAndCompare("9999999998", "13091054", "de", ("DE46130910549999999998", .IBANToolsDefaultIBAN), true), "30.112");
+    XCTAssert(testAndCompare("9999999999", "13091054", "de", ("DE19130910549999999999", .IBANToolsDefaultIBAN), true), "30.113");
+
+    // Rule 0031.
+    XCTAssert(testAndCompare("6790149813", "545 200 71", "de", ("DE77545201946790149813", "HYVEDEMM483", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "31.1");
+    XCTAssert(testAndCompare("6791000000", "545 200 71", "de", ("", "", .IBANToolsBadAccount, .IBANToolsBadAccount), true), "31.2");
+
+    // This test is (according to the docs) supposed to fail because the account number is too short.
+    // However the account number is not valid and the bank code needs special mapping which doesn't work without a valid account.
+    // Consequently we cannot even say which IBAN rule to apply.
+    XCTAssert(testAndCompare("897", "101 207 60", "de", ("", "", .IBANToolsNoMethod, .IBANToolsNoMethod), false), "31.3");
+
+    XCTAssert(testAndCompare("1210100047", "790 203 25", "de", ("DE70762200731210100047", "HYVEDEMM419", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "31.5");
+    XCTAssert(testAndCompare("1210100047", "700 200 01", "de", ("DE70762200731210100047", "HYVEDEMM419", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "31.6");
+    XCTAssert(testAndCompare("1210100047", "760 202 14", "de", ("DE70762200731210100047", "HYVEDEMM419", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "31.7");
+    XCTAssert(testAndCompare("1210100047", "762 200 73", "de", ("DE70762200731210100047", "HYVEDEMM419", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "31.8");
+
+    // Same again as for account 897 above. We need a valid account to lookup old bank codes.
+    XCTAssert(testAndCompare("44613352", "630 204 50", "de", ("", "", .IBANToolsNoMethod, .IBANToolsNoMethod), false), "31.9");
+    XCTAssert(testAndCompare("1457032621", "660 201 50", "de", ("DE92660202861457032621", "HYVEDEMM475", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "31.10");
+    XCTAssert(testAndCompare("1210100040", "790 203 25", "de", ("", "", .IBANToolsBadAccount, .IBANToolsBadAccount), true), "31.11");
+
+    // Rule 0032.
+    XCTAssert(testAndCompare("1210100047", "762 200 73", "de", ("DE70762200731210100047", "HYVEDEMM419", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "32.1");
+    XCTAssert(testAndCompare("1457032621", "660 202 86", "de", ("DE92660202861457032621", "HYVEDEMM475", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "32.2");
+    XCTAssert(testAndCompare("3200000012", "762 200 73", "de", ("DE06710221823200000012", "HYVEDEMM453", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "32.3");
+    XCTAssert(testAndCompare("5951950", "100 208 90", "de", ("DE07100208900005951950", "HYVEDEMM488", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "32.4");
+    XCTAssert(testAndCompare("897", "100 208 90", "de", ("", "", .IBANToolsBadAccount, .IBANToolsBadAccount), true), "32.5");
+    XCTAssert(testAndCompare("847321750", "850 200 86", "de", ("", "", .IBANToolsNoConv, .IBANToolsNoConv), true), "32.6");
+
+    // Rule 0033.
+    XCTAssert(testAndCompare("2950219435", "70020270", "de", ("DE76700202702950219435", "HYVEDEMMXXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "33.1");
+    XCTAssert(testAndCompare("1457032621", "70020270", "de", ("DE92660202861457032621", "HYVEDEMM475", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "33.2");
+    XCTAssert(testAndCompare("897", "70020270", "de", ("DE55700202700000000897", "HYVEDEMMXXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "33.3");
+    XCTAssert(testAndCompare("847321750", "70020270", "de", ("DE36700202700847321750", "HYVEDEMMXXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "33.4");
+
+    XCTAssert(testAndCompare("22222", "70020270", "de", ("DE11700202705803435253", "HYVEDEMMXXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "33.5");
+    XCTAssert(testAndCompare("1111111", "70020270", "de", ("DE88700202700039908140", "HYVEDEMMXXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "33.6");
+    XCTAssert(testAndCompare("94", "70020270", "de", ("DE83700202700002711931", "HYVEDEMMXXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "33.7");
+    XCTAssert(testAndCompare("7777777", "70020270", "de", ("DE40700202705800522694", "HYVEDEMMXXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "33.8");
+    XCTAssert(testAndCompare("55555", "70020270", "de", ("DE61700202705801800000", "HYVEDEMMXXX", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "33.9");
+
+    // Rule 0034.
+    XCTAssert(testAndCompare("1320815432", "60020290", "de", ("DE69600202901320815432", "HYVEDEMM473", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "34.1");
+    XCTAssert(testAndCompare("1457032621", "60020290", "de", ("DE92660202861457032621", "HYVEDEMM475", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "34.2");
+    XCTAssert(testAndCompare("5951950", "60020290", "de", ("DE67600202900005951950", "HYVEDEMM473", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "34.3");
+    XCTAssert(testAndCompare("847321750", "60020290", "de", ("", "", .IBANToolsNoConv, .IBANToolsNoConv), true), "34.4");
+
+    XCTAssert(testAndCompare("500500500", "60020290", "de", ("DE82600202904340111112", "HYVEDEMM473", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "34.5");
+    XCTAssert(testAndCompare("502", "60020290", "de", ("DE28600202904340118001", "HYVEDEMM473", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "34.6");
+
+    // Rule 0035.
+    XCTAssert(testAndCompare("1050958422", "79020076", "de", ("DE42790200761050958422", "HYVEDEMM455", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "35.1");
+    XCTAssert(testAndCompare("1320815432", "79020076", "de", ("DE69600202901320815432", "HYVEDEMM473", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "35.2");
+    XCTAssert(testAndCompare("5951950", "79020076", "de", ("DE56790200760005951950", "HYVEDEMM455", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "35.3");
+    XCTAssert(testAndCompare("847321750", "79020076", "de", ("", "", .IBANToolsNoConv, .IBANToolsNoConv), true), "35.4");
+
+    XCTAssert(testAndCompare("9696", "79020076", "de", ("DE29790200761490196966", "HYVEDEMM455", .IBANToolsDefaultIBAN, .IBANToolsOK), true), "35.5");
   }
 }
