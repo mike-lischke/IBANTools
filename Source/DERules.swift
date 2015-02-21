@@ -66,11 +66,11 @@ internal class DERules : IBANRules {
       DERules.rule36, DERules.rule37, DERules.rule38, DERules.rule39,
 
       DERules.rule40, DERules.rule41,
-      DERules.rule42, DERules.rule43, DERules.rule44, DERules.rule45, DERules.rule46, DERules.rule47,
-      DERules.rule48, DERules.rule49,
+      DERules.rule42, DERules.rule43, DERules.defaultRule, DERules.defaultRule, DERules.rule46,
+      DERules.rule47, DERules.rule48, DERules.rule49,
 
       DERules.rule50, DERules.rule51, DERules.rule52, DERules.rule53,
-      DERules.rule54, DERules.rule55, DERules.rule56, DERules.rule57, DERules.rule58, DERules.rule59,
+      DERules.rule54, DERules.rule55, DERules.rule56, DERules.rule57,
     ];
   }
 
@@ -223,18 +223,32 @@ internal class DERules : IBANRules {
         case 25050299: // Sparkasse Hannover
           institute.bic = "SPKHDE2HXXX";
 
+        case 62220000: // Bausparkasse Schwäbisch Hall AG
+          institute.bic = "GENODEFFXXX";
+
+        case 60651070: // Sparkasse Pforzheim Calw
+          institute.bic = "PZHSDE66XXX";
+
         default:
           done = false;
         }
 
+        let bankString = bankCode as NSString;
         if !done {
           // Mappings for certain bank code clusters.
-          let cluster = (bankCode as NSString).substringWithRange(NSMakeRange(3, 3));
+          let cluster = bankString.substringWithRange(NSMakeRange(3, 3));
           if cluster == "400" { // Commerzbank main.
             institute.bic = "COBADEFFXXX";
           } else {
-            if (institute.bic as NSString).hasPrefix("DAAEDED") { // apoBank
+            if (institute.bic as NSString).hasPrefix("DAAEDED") { // apoBank.
               institute.bic = "DAAEDEDDXXX";
+            } else {
+              if bankString.hasPrefix("502101") || bankString.hasPrefix("505101") { // SEB AG.
+                let suffix = bank % 100;
+                if (bankString.hasPrefix("502101") && 30...89 ~= suffix) || (20...80 ~= suffix) {
+                  institute.bic = "ESSEDE5FXXX";
+                }
+              }
             }
           }
         }
@@ -468,16 +482,29 @@ internal class DERules : IBANRules {
     return (account, bankCode, "", .IBANToolsDefaultIBAN);
   }
 
-  private class func rule36(account: String, bankCode: String, version: Int) -> RuleResult {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+  private class func rule36(var account: String, bankCode: String, version: Int) -> RuleResult {
+    var accountAsInt = account.toInt()!;
+    switch accountAsInt {
+    case 0...999999:
+      account = String(accountAsInt) + "000";
+
+    case 0000000000...0000099999, 0000900000...0029999999, 0060000000...0099999999,
+         0900000000...0999999999, 2000000000...2999999999, 7100000000...8499999999,
+         8600000000...8999999999:
+      return (account, bankCode, "", .IBANToolsNoConv);
+      
+    default:
+      break;
+    }
+    return (account, "21050000", "", .IBANToolsDefaultIBAN);
   }
 
   private class func rule37(account: String, bankCode: String, version: Int) -> RuleResult {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+    return (account, "30010700", "", .IBANToolsDefaultIBAN);
   }
 
   private class func rule38(account: String, bankCode: String, version: Int) -> RuleResult {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+    return (account, "28590075", "", .IBANToolsDefaultIBAN);
   }
 
   private class func rule39(account: String, bankCode: String, version: Int) -> RuleResult {
@@ -485,34 +512,58 @@ internal class DERules : IBANRules {
   }
   
   private class func rule40(account: String, bankCode: String, version: Int) -> RuleResult {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+    return (account, "68052328", "", .IBANToolsDefaultIBAN);
   }
 
   private class func rule41(account: String, bankCode: String, version: Int) -> RuleResult {
+    if bankCode == "62220000" {
+      return (account, bankCode, "DE96500604000000011404", .IBANToolsOK);
+    }
     return (account, bankCode, "", .IBANToolsDefaultIBAN);
   }
 
   private class func rule42(account: String, bankCode: String, version: Int) -> RuleResult {
+    let accountAsInt = account.toInt()!;
+    if !(10000000...99999999 ~= accountAsInt) { // Only accounts with 8 digits are valid.
+      return (account, bankCode, "", .IBANToolsNoConv);
+    }
+
+    if 0...999 ~= accountAsInt % 100000 { // No IBAN for nnn 0 0000 through nnn 0 0999.
+      return (account, bankCode, "", .IBANToolsNoConv);
+    }
+
+    if 50462000...50463999 ~= accountAsInt || 50469000...50469999 ~= accountAsInt {
+      return (account, bankCode, "", .IBANToolsDefaultIBAN);
+    }
+
+    if (accountAsInt / 10000) % 10 != 0 { // Only accounts with 0 at 4th position.
+      return (account, bankCode, "", .IBANToolsNoConv);
+    }
     return (account, bankCode, "", .IBANToolsDefaultIBAN);
   }
 
-  private class func rule43(account: String, bankCode: String, version: Int) -> RuleResult {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
+  private class func rule43(var account: String, var bankCode: String, version: Int) -> RuleResult {
+    if bankCode == "60651070" {
+      bankCode = "66650085"; // Now accounts must be valid for this new bank code, so do another account check.
 
-  private class func rule44(account: String, bankCode: String, version: Int) -> RuleResult {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
-
-  private class func rule45(account: String, bankCode: String, version: Int) -> RuleResult {
+      let checksumMethod = checkSumMethodForInstitute(bankCode);
+      let (valid, result, checkSumPos) = DEAccountCheck.checkWithMethod(checksumMethod, &account, &bankCode, true);
+      if !valid {
+        return (account, bankCode, "", result);
+      }
+    }
     return (account, bankCode, "", .IBANToolsDefaultIBAN);
   }
 
   private class func rule46(account: String, bankCode: String, version: Int) -> RuleResult {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
+    return (account, "31010833", "", .IBANToolsDefaultIBAN);
   }
 
-  private class func rule47(account: String, bankCode: String, version: Int) -> RuleResult {
+  private class func rule47(var account: String, bankCode: String, version: Int) -> RuleResult {
+    let accountAsInt = account.toInt()!;
+    if 10000000...99999999 ~= accountAsInt { // 8 digit accounts must be right-justified, instead of the usual left alignment.
+      account = String(accountAsInt) + "00";
+    }
     return (account, bankCode, "", .IBANToolsDefaultIBAN);
   }
 
@@ -553,18 +604,6 @@ internal class DERules : IBANRules {
   }
 
   private class func rule57(account: String, bankCode: String, version: Int) -> RuleResult {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
-
-  private class func rule58(account: String, bankCode: String, version: Int) -> RuleResult {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
-
-  private class func rule59(account: String, bankCode: String, version: Int) -> RuleResult {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
-  
-  private class func rule60(account: String, bankCode: String, version: Int) -> RuleResult {
     return (account, bankCode, "", .IBANToolsDefaultIBAN);
   }
 

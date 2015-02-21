@@ -821,7 +821,8 @@ internal class DEAccountCheck : AccountCheck {
         useMethod("75");
 
       case 8:
-        return (number10[2] == 3 || number10[2] == 4 || number10[2] == 5, .IBANToolsNoChecksum, -1);
+        let valid = number10[2] == 3 || number10[2] == 4 || number10[2] == 5;
+        return (valid, valid ? .IBANToolsNoChecksum : .IBANToolsBadAccount, -1);
 
       case 10:
         switch number10[0] {
@@ -832,7 +833,8 @@ internal class DEAccountCheck : AccountCheck {
           useMethod("00");
 
         default:
-          return (number10[0] == 7 && number10[1] == 0 || number10[0] == 8 && number10[1] == 5, .IBANToolsNoChecksum, -1);
+          let valid = number10[0] == 7 && number10[1] == 0 || number10[0] == 8 && number10[1] == 5;
+          return (valid, valid ? .IBANToolsNoChecksum : .IBANToolsBadAccount, -1);
         }
 
       default:
