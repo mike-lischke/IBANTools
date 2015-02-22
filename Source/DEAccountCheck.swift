@@ -100,7 +100,7 @@ internal class DEAccountCheck : AccountCheck {
       }
 
       if content != nil {
-        var sourceBankCode = 0;
+        var sourceBankCode: NSString = "";
         var rule = 0;
         var entry: Static.MappingDetails = (0, 0, 0, 0);
 
@@ -146,7 +146,7 @@ internal class DEAccountCheck : AccountCheck {
               switch p.substringToIndex(3) {
               case "#sc":
                 if explicitValue.length > 0 {
-                  sourceBankCode = (explicitValue as String).toInt()!;
+                  sourceBankCode = (explicitValue as NSString);
                   sourceBankCodeIndex = -1;
                 } else {
                   sourceBankCodeIndex = index++;
@@ -200,7 +200,7 @@ internal class DEAccountCheck : AccountCheck {
           // Normal mapping line.
           let parts: [String] = s.componentsSeparatedByCharactersInSet(NSCharacterSet.whitespaceCharacterSet()) as [String];
           if sourceBankCodeIndex > -1 && sourceBankCodeIndex < parts.count {
-            sourceBankCode = parts[sourceBankCodeIndex].toInt()!;
+            sourceBankCode = parts[sourceBankCodeIndex];
           }
           if sourceAccountIndex > -1 && sourceAccountIndex < parts.count {
             entry.rangeStart = parts[sourceAccountIndex].toInt()!;
@@ -221,12 +221,16 @@ internal class DEAccountCheck : AccountCheck {
 
           // There can never be multiple IBAN rules for a given bank code as every bank code is
           // covered by exactly one rule (or none at all).
-          var mappingTuple = Static.mappings[sourceBankCode];
-          if mappingTuple == nil {
-            mappingTuple = (rule, []);
+          // The source bank code can actually be a list of bank codes.
+          for bankCode in sourceBankCode.componentsSeparatedByString(",") {
+            let code = (bankCode as String).toInt()!;
+            var mappingTuple = Static.mappings[code];
+            if mappingTuple == nil {
+              mappingTuple = (rule, []);
+            }
+            mappingTuple!.details.append(entry);
+            Static.mappings[code] = mappingTuple;
           }
-          mappingTuple!.details.append(entry);
-          Static.mappings[sourceBankCode] = mappingTuple;
         }
       }
     }
@@ -2122,13 +2126,18 @@ internal class DEAccountCheck : AccountCheck {
     return false;
   }
 
-  private class func checkSpecialAccount(inout account: String, inout bankCode: String) {
+  /**
+   * Checks if we have a mapping for the given account/bank code pair.
+   * If so either account or bank code (or both) are replaced according to the mapping and true is returned.
+   * If there's no mapping then false is returned.
+   */
+  internal class func checkSpecialAccount(inout account: String, inout bankCode: String) -> Bool {
     if let mappingTuple = Static.mappings[bankCode.toInt()!] {
       // One or more mapping details. Take the first that applies.
       for entry in mappingTuple.details {
         if entry.rangeStart == 0 && entry.account == 0 {
           bankCode = String(entry.bankCode);
-          break;
+          return true;
         } else {
           if (entry.rangeStart == 0) || (entry.rangeStart...entry.rangeEnd ~= account.toInt()!) {
             if entry.account > 0 {
@@ -2137,11 +2146,12 @@ internal class DEAccountCheck : AccountCheck {
             if entry.bankCode > 0 {
               bankCode = String(entry.bankCode);
             }
-            break;
+            return true;
           }
         }
       }
     }
+    return false;
   }
 
   // In cases where we get a bank code which is no longer valid (and hence no longer in the official

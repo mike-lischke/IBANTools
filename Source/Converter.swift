@@ -68,9 +68,14 @@ internal typealias ConversionResult = (iban: String, result: IBANToolsResult);
 // Note: @objc and the NSObject base class are necessary to make dynamic instantiation working.
 @objc(IBANRules)
 internal class IBANRules : NSObject {
+  class func validWithoutChecksum(account: String, _ bankCode: String) -> Bool {
+    return false;
+  }
+
   class func convertToIBAN(inout account: String, inout _ bankCode: String) -> ConversionResult {
     return ("", .IBANToolsNoConv);
   }
+
   class func bicForBankCode(bankCode: String) -> (bic: String, result: IBANToolsResult) {
     return ("", .IBANToolsNoBic);
   }
@@ -176,12 +181,6 @@ public class IBANtools {
   */
   public class func convertToIBAN(inout account: String, inout bankCode: String, var countryCode: String,
     validateAccount: Bool = true) -> (iban: String, result: IBANToolsResult) {
-      if validateAccount {
-        let accountResult = isValidAccount(&account, bankCode: &bankCode, countryCode: countryCode, forIBAN: true)
-        if !accountResult.valid {
-          return ("", accountResult.result);
-        }
-      }
 
       account = account.stringByReplacingOccurrencesOfString(" ", withString: "");
       bankCode = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
@@ -201,6 +200,18 @@ public class IBANtools {
       // bank code and account number have the desired length.
       if let details = countryData[countryCode] {
         let clazz: AnyClass! = NSClassFromString(countryCode + "Rules");
+
+        // Some accounts can be used for IBANs even though they do not validate.
+        var ignoreChecksum = false;
+        if clazz != nil {
+          ignoreChecksum = (clazz as IBANRules.Type).validWithoutChecksum(account, bankCode);
+        }
+        if validateAccount && !ignoreChecksum {
+          let accountResult = isValidAccount(&account, bankCode: &bankCode, countryCode: countryCode, forIBAN: true)
+          if !accountResult.valid {
+            return ("", accountResult.result);
+          }
+        }
         if clazz != nil {
           let rulesClass = clazz as IBANRules.Type;
           result = rulesClass.convertToIBAN(&account, &bankCode);
@@ -213,6 +224,13 @@ public class IBANtools {
         }
         if bankCode.utf16Count < details.bankCodeLength {
           bankCode = String(count: details.bankCodeLength - bankCode.utf16Count, repeatedValue: "0" as Character) + bankCode;
+        }
+      } else {
+        if validateAccount {
+          let accountResult = isValidAccount(&account, bankCode: &bankCode, countryCode: countryCode, forIBAN: true)
+          if !accountResult.valid {
+            return ("", accountResult.result);
+          }
         }
       }
 
