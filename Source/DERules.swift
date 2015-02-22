@@ -70,7 +70,7 @@ internal class DERules : IBANRules {
       DERules.rule47, DERules.defaultRule, DERules.rule49,
 
       DERules.defaultRule, DERules.defaultRule, DERules.rule52, DERules.defaultRule,
-      DERules.defaultRule, DERules.rule55, DERules.rule56, DERules.rule57,
+      DERules.defaultRule, DERules.rule55, DERules.rule56, DERules.defaultRule,
     ];
 
     // For certain bank codes a specific range of account numbers are closed off and not
@@ -633,10 +633,6 @@ internal class DERules : IBANRules {
       return (account, bankCode, "", .IBANToolsNoConv);
     }
    return (account, bankCode, "", .IBANToolsDefaultIBAN);
-  }
-
-  private class func rule57(account: String, bankCode: String, version: Int) -> RuleResult {
-    return (account, bankCode, "", .IBANToolsDefaultIBAN);
   }
 
 }
