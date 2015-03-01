@@ -179,10 +179,10 @@ class IBANtoolsTests: XCTestCase {
   }
   
   func testIBANConversion() {
-    XCTAssert(testAndCompare("", "12345", "xy", ("", .IBANToolsWrongValue)),  "Default 1");
-    XCTAssert(testAndCompare("12345", "", "xy", ("", .IBANToolsWrongValue)), "Default 2");
-    XCTAssert(testAndCompare("12345", "12345", "", ("", .IBANToolsWrongValue)), "Default 3");
-    XCTAssert(testAndCompare("12345", "12345", "µ", ("", .IBANToolsWrongValue), false), "Default 4");
+    XCTAssert(testAndCompare("", "12345", "xy", ("", .WrongValue)),  "Default 1");
+    XCTAssert(testAndCompare("12345", "", "xy", ("", .WrongValue)), "Default 2");
+    XCTAssert(testAndCompare("12345", "12345", "", ("", .WrongValue)), "Default 3");
+    XCTAssert(testAndCompare("12345", "12345", "µ", ("", .WrongValue), false), "Default 4");
 
     var counter = 5;
     for entry in testData {
@@ -197,14 +197,14 @@ class IBANtoolsTests: XCTestCase {
         }
       }
       let expected = entry.code + entry.checksum + bankCodeNumber + accountNumber;
-      XCTAssert(testAndCompare(entry.account, entry.bank, entry.code, (expected, .IBANToolsDefaultIBAN)), "Default \(counter++)");
+      XCTAssert(testAndCompare(entry.account, entry.bank, entry.code, (expected, .DefaultIBAN)), "Default \(counter++)");
     }
 
   }
 
   func testBICDetermination () {
     // Currently BICs can only be determined for german accounts.
-    XCTAssertEqual(IBANtools.bicForIBAN("VG96VPVG0000012345678901").result, IBANToolsResult.IBANToolsNoBic);
+    XCTAssertEqual(IBANtools.bicForIBAN("VG96VPVG0000012345678901").result, IBANToolsResult.NoBIC);
   }
 
 }

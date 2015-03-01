@@ -19,102 +19,117 @@
 
 import Foundation
 
-let A: unichar = 65; // "A"
-let Z: unichar = 90; // "Z"
-
-public enum IBANToolsResult {
-  case IBANToolsDefaultIBAN // The default rule for generating an IBAN was used.
-  case IBANToolsOK          // Conversion/check was ok.
-  case IBANToolsNoBic       // No known BIC.
+public enum IBANToolsResult: Int {
+  case DefaultIBAN // The default rule for generating an IBAN was used.
+  case OK          // Conversion/check was ok.
+  case NoBIC       // No known BIC.
 
   // All other results are returned by country specific code only.
-  case IBANToolsBadAccount  // The account was rejected (e.g. wrong checksum).
-  case IBANToolsBadBank     // The bank code was rejected (e.g. deleted bank entry).
-  case IBANToolsNoMethod    // Couldn't find any conversion/checksum method.
-  case IBANToolsNoConv      // No IBAN conversion by intention (always invalid).
-  case IBANToolsNoChecksum  // No checksum computation/check by intention for bank accounts (always valid).
-  case IBANToolsWrongValue  // One of the given parameters was wrong (0 for account/bank,
-                            // no 2 letter country code, invalid chars etc.).
+  case BadAccount   // The account was rejected (e.g. wrong checksum).
+  case BadBank      // The bank code was rejected (e.g. deleted bank entry).
+  case NoMethod     // Couldn't find any conversion/checksum method.
+  case NoConversion // No IBAN conversion by intention (always invalid).
+  case NoChecksum   // No checksum computation/check by intention for bank accounts (always valid).
+  case WrongValue   // One of the given parameters was wrong (0 for account/bank,
+                    // no 2 letter country code, invalid chars etc.).
 
   public func description() -> String {
     switch self {
-    case IBANToolsDefaultIBAN:
-      return "IBANToolsDefaultIBAN";
-    case IBANToolsOK:
-      return "IBANToolsOK";
-    case IBANToolsNoBic:
-      return "IBANToolsNoBic";
-    case IBANToolsBadAccount:
-      return "IBANToolsBadAccount";
-    case IBANToolsBadBank:
-      return "IBANToolsBadBank";
-    case IBANToolsNoMethod:
-      return "IBANToolsNoMethod";
-    case IBANToolsNoConv:
-      return "IBANToolsNoConv";
-    case IBANToolsNoChecksum:
-      return "IBANToolsNoChecksum";
-    case IBANToolsWrongValue:
-      return "IBANToolsWrongValue";
+    case DefaultIBAN:
+      return "DefaultIBAN";
+    case OK:
+      return "OK";
+    case NoBIC:
+      return "NoBIC";
+    case BadAccount:
+      return "BadAccount";
+    case BadBank:
+      return "BadBank";
+    case NoMethod:
+      return "NoMethod";
+    case NoConversion:
+      return "NoConversion";
+    case NoChecksum:
+      return "NoChecksum";
+    case WrongValue:
+      return "WrongValue";
     default:
       return "Invalid enum value";
     }
   }
 }
 
-internal typealias ConversionResult = (iban: String, result: IBANToolsResult);
+typealias ConversionResult = (iban: String, result: IBANToolsResult);
 
-// Base classes for country specific rules.
-// Note: @objc and the NSObject base class are necessary to make dynamic instantiation working.
+/// Base classes for country specific rules.
+/// Note: @objc and the NSObject base class are necessary to make dynamic instantiation working.
 @objc(IBANRules)
-internal class IBANRules : NSObject {
+class IBANRules : NSObject {
   class func validWithoutChecksum(account: String, _ bankCode: String) -> Bool {
     return false;
   }
 
   class func convertToIBAN(inout account: String, inout _ bankCode: String) -> ConversionResult {
-    return ("", .IBANToolsNoConv);
+    return ("", .NoConversion);
   }
 
   class func bicForBankCode(bankCode: String) -> (bic: String, result: IBANToolsResult) {
-    return ("", .IBANToolsNoBic);
+    return ("", .NoBIC);
   }
 }
 
 @objc(AccountCheck)
-internal class AccountCheck : NSObject {
+class AccountCheck : NSObject {
   class func isValidAccount(inout account: String, inout _ bankCode: String, _ forIBAN: Bool) ->
     (valid: Bool, result: IBANToolsResult) {
-    return (false, .IBANToolsNoMethod);
+    return (false, .NoMethod);
   }
 }
 
 @objc(IBANtools)
 public class IBANtools {
 
-  /**
-   * Validates the given IBAN. Returns true if the number is valid, otherwise false.
-   */
+  /// Validates the given IBAN. Returns true if the number is valid, otherwise false.
   public class func isValidIBAN(iban: String) -> Bool {
     return computeChecksum(iban) == 97;
   }
 
-  /**
-   * Validates the given bank account number. Returns true if the number is valid, otherwise false.
-   * This check involves institute's specific checksum rules.
-   * Also returns the real account number if the given one is special (e.g. for donations).
-   */
+  /// Wrapper function for isvalidAccount function to be usable by Obj-C.
+  /// Entries used in the result dictionaries:
+  ///   "valid" (Bool in an NSNumber)
+  ///   "result" (IBANToolsResult in an NSNumber)
+  ///   "account" (String)
+  ///   "bankCode" (String)
+  public class func isValidAccount(account: String, bankCode: String, countryCode: String, forIBAN: Bool = false) ->
+    Dictionary<String, AnyObject> {
+
+    var mutableAccount = account;
+    var mutableBankCode = bankCode;
+    let results = isValidAccount(&mutableAccount, bankCode: &mutableBankCode, countryCode: countryCode, forIBAN: forIBAN);
+    var result: Dictionary<String, AnyObject> = [
+      "valid": NSNumber(bool: results.valid),
+      "account": mutableAccount,
+      "bankCode": mutableBankCode,
+      "result": NSNumber(integer: results.result.rawValue),
+    ];
+
+    return result;
+  }
+
+  /// Validates the given bank account number. Returns true if the number is valid, otherwise false.
+  /// This check involves institute specific checksum rules.
+  /// Also returns the real account number if the given one is special (e.g. for donations).
   public class func isValidAccount(inout account: String, inout bankCode: String, var countryCode: String, forIBAN: Bool = false) ->
     (valid: Bool, result: IBANToolsResult) {
 
     account = account.stringByReplacingOccurrencesOfString(" ", withString: "");
     bankCode = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
     if account.utf16Count == 0 || bankCode.utf16Count == 0 || countryCode.utf16Count != 2 {
-      return (false, .IBANToolsWrongValue);
+      return (false, .WrongValue);
     }
 
     if containsInvalidChars(account) || containsInvalidChars(bankCode) {
-      return (false, .IBANToolsWrongValue);
+      return (false, .WrongValue);
     }
 
     countryCode = countryCode.uppercaseString;
@@ -127,21 +142,33 @@ public class IBANtools {
       }
     }
 
-    return (true, .IBANToolsOK); // For any country for which we have no checksum check assume everything is ok.
+    return (true, .OK); // For any country for which we have no checksum check assume everything is ok.
   }
 
-  /**
-   * Returns the BIC for a given bank code. Since there is no generic procedure to determine the BIC
-   * this lookup only works for those countries with a specific implementation (DE atm).
-   */
+  /// Wrapper function for bicForBankCode function to be usable by Obj-C.
+  /// Entries used in the result dictionaries:
+  ///   "bic" (String)
+  ///   "result" (IBANToolsResult in an NSNumber)
+  public class func bicForBankCode(bankCode: String, countryCode: String) -> Dictionary<String, AnyObject> {
+    let results: (bic: String, result: IBANToolsResult) = bicForBankCode(bankCode, countryCode: countryCode);
+    var result: Dictionary<String, AnyObject> = [
+      "bic": results.bic,
+      "result": NSNumber(integer: results.result.rawValue),
+    ];
+
+    return result;
+  }
+
+  /// Returns the BIC for a given bank code. Since there is no generic procedure to determine the BIC
+  /// this lookup only works for those countries with a specific implementation (DE atm).
   public class func bicForBankCode(var bankCode: String, var countryCode: String) -> (bic: String, result: IBANToolsResult) {
     bankCode = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
     if bankCode.utf16Count == 0 || countryCode.utf16Count != 2 {
-      return ("", .IBANToolsWrongValue);
+      return ("", .WrongValue);
     }
 
     if containsInvalidChars(bankCode) {
-      return ("", .IBANToolsWrongValue);
+      return ("", .WrongValue);
     }
 
     countryCode = countryCode.uppercaseString;
@@ -154,47 +181,80 @@ public class IBANtools {
       }
     }
 
-    return ("", .IBANToolsNoBic);
+    return ("", .NoBIC);
   }
   
-  /**
-   * Returns the BIC for a given IBAN.
-   */
+  /// Wrapper function for bicForIBAN function to be usable by Obj-C.
+  /// Entries used in the result dictionaries:
+  ///   "bic" (String)
+  ///   "result" (IBANToolsResult in an NSNumber)
+  public class func bicForIBAN(iban: String) -> Dictionary<String, AnyObject> {
+    let results: (bic: String, result: IBANToolsResult) = bicForIBAN(iban);
+    var result: Dictionary<String, AnyObject> = [
+      "bic": results.bic,
+      "result": NSNumber(integer: results.result.rawValue),
+    ];
+
+    return result;
+  }
+  
+  /// Returns the BIC for a given IBAN.
   public class func bicForIBAN(iban: String) -> (bic: String, result: IBANToolsResult) {
     let countryCode = (iban as NSString).substringWithRange(NSMakeRange(0, 2));
     if let details = countryData[countryCode.uppercaseString] {
       let bankCode = (iban as NSString).substringWithRange(NSMakeRange(4, details.bankCodeLength));
       return bicForBankCode(bankCode, countryCode: countryCode);
     }
-    return ("", .IBANToolsNoBic);
+    return ("", .NoBIC);
   }
 
-  /**
-  * Converts the given account number and bank code to an IBAN number.
-  * Can return an empty string if the given values are invalid or if there's no IBAN conversion.
-  * for a given account number (e.g. for accounts no longer in use).
-  * Notes:
-  *   - Values can contain space chars. They are automatically removed.
-  *   - Switching off account validation is not recommended as often accounts and/or bank codes must be
-  *     replaced by others which happens during account validation. Essentially keep this on except for
-  *     unit testing with random account numbers instead of real ones.
-  */
+  /// Wrapper function for convertToIBAN function to be usable by Obj-C.
+  /// Entries used in the result dictionaries:
+  ///   "iban" (String)
+  ///   "result" (IBANToolsResult in an NSNumber)
+  ///   "account" (String)
+  ///   "bankCode" (String)
+  public class func convertToIBAN(account: String, bankCode: String, countryCode: String,
+    validateAccount: Bool = true) -> Dictionary<String, AnyObject> {
+
+    var mutableAccount = account;
+    var mutableBankCode = bankCode;
+    let results = convertToIBAN(&mutableAccount, bankCode: &mutableBankCode, countryCode: countryCode,
+      validateAccount: validateAccount);
+    var result: Dictionary<String, AnyObject> = [
+      "iban": results.iban,
+      "account": mutableAccount,
+      "bankCode": mutableBankCode,
+      "result": NSNumber(integer: results.result.rawValue),
+    ];
+
+    return result;
+  }
+  
+  /// Converts the given account number and bank code to an IBAN number.
+  /// Can return an empty string if the given values are invalid or if there's no IBAN conversion.
+  /// for a given account number (e.g. for accounts no longer in use).
+  /// Notes:
+  ///   - Values can contain space chars. They are automatically removed.
+  ///   - Switching off account validation is not recommended as often accounts and/or bank codes must be
+  ///     replaced by others which happens during account validation. Essentially keep this on except for
+  ///     unit testing with random account numbers instead of real ones.
   public class func convertToIBAN(inout account: String, inout bankCode: String, var countryCode: String,
     validateAccount: Bool = true) -> (iban: String, result: IBANToolsResult) {
 
       account = account.stringByReplacingOccurrencesOfString(" ", withString: "");
       bankCode = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
       if account.utf16Count == 0 || bankCode.utf16Count == 0 || countryCode.utf16Count != 2 {
-        return ("", .IBANToolsWrongValue);
+        return ("", .WrongValue);
       }
 
       if containsInvalidChars(account) || containsInvalidChars(bankCode) {
-        return ("", .IBANToolsWrongValue);
+        return ("", .WrongValue);
       }
 
       countryCode = countryCode.uppercaseString;
 
-      var result: (String, IBANToolsResult) = ("", .IBANToolsDefaultIBAN);
+      var result: (String, IBANToolsResult) = ("", .DefaultIBAN);
 
       // If we have country information call the country converter and then ensure
       // bank code and account number have the desired length.
@@ -234,7 +294,7 @@ public class IBANtools {
         }
       }
 
-      if result.1 == .IBANToolsDefaultIBAN {
+      if result.1 == .DefaultIBAN {
         var checksum = String(computeChecksum(countryCode + "00" + bankCode.uppercaseString + account.uppercaseString));
         if checksum.utf16Count < 2 {
           checksum = "0" + checksum;
@@ -273,10 +333,8 @@ public class IBANtools {
     return 98 - mod97(work);
   }
 
-  /**
-  * Checks if the input string only consists of letters and numbers.
-  * Everything else is considered wrong.
-  */
+  /// Checks if the input string only consists of letters and numbers.
+  /// Everything else is considered wrong.
   private class func containsInvalidChars(input: String) -> Bool {
     for c in input {
       if c < "0" || (c > "9" && c < "A") || (c > "Z" && c < "a") || c > "z" {

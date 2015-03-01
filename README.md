@@ -8,3 +8,5 @@ The entire concept is made to allow flexible enhancements for other countries wh
 
 # Usage
 The package is a framework that you can either compile separately and just use the compiled framework or add the entire project as subproject to yours, which has the additional advantage that in the future Swift runtime updates are automatically included. This is important since applications contain embedded swift runtime libs to ensure even with later updates they still work for the version they are compiled against. If such embedded swift libs in your app and embedded frameworks differ, you can get all kind of trouble. This means you should always take care that all parts (main app and framework) of your product are compiled with the same Swift version.
+
+Note: at the moment it's not possible to include the framework as sub project (at least I couldn't get it to work with an obj-c application). In such a case you have to directly include the swift files in your project and take care the resource files are included in your app so that the IBANtools can find their required data.
