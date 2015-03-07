@@ -36,54 +36,272 @@ internal class DEAccountCheck : AccountCheck {
     case ReturnDivByModulus    // sum / modulus
   }
 
-  private struct Static {
-    // Details for each used method.
-    // In some cases the range is not continuous, which require a special slice construction then.
-    typealias MethodParameters = (
-      modulus: UInt16,
-      weights: [UInt16],
-      indices: (start: Int, stop: Int, check: Int)
-    );
-    static var methodParameters: [String: MethodParameters] = [:];
+  /// Details for each used method.
+  /// In some cases the range is not continuous, which require a special slice construction then.
+  typealias MethodParameters = (
+    modulus: UInt16,
+    weights: [UInt16],
+    indices: (start: Int, stop: Int, check: Int)
+  );
 
-    static let m10hTransformationTable: [[UInt16]] = [
-      [0, 1, 5, 9, 3, 7, 4, 8, 2, 6],
-      [0, 1, 7, 6, 9, 8, 3, 2, 5, 4],
-      [0, 1, 8, 4, 6, 2, 9, 5, 7, 3],
-      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-    ];
+  // TODO: this data should also be in a file (so we can update it without recompilation).
+  static private var methodParameters: [String: MethodParameters] = [
+    "00": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "01": (10, [3, 7, 1, 3, 7, 1, 3, 7, 1], (0, 8, 9)),
+    "02": (11, [2, 3, 4, 5, 6, 7, 8, 9, 2], (0, 8, 9)),
+    "03": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "04": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
+    "05": (10, [7, 3, 1, 7, 3, 1, 7, 3, 1], (0, 8, 9)),
+    "06": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
+    "07": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
+    "08": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "10": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
+    "11": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
+    "13": (10, [2, 1, 2, 1, 2, 1], (1, 6, 7)),
+    "13b": (10, [2, 1, 2, 1, 2, 1], (3, 8, 9)),
+    "14": (11, [2, 3, 4, 5, 6, 7], (0, 8, 9)),
+    "15": (11, [2, 3, 4, 5], (0, 8, 9)),
+    "16": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
+    "17": (11, [1, 2, 1, 2, 1, 2], (1, 6, 9)),
+    "18": (10, [3, 9, 7, 1, 3, 9, 7, 1, 3], (0, 8, 9)),
+    "19": (11, [2, 3, 4, 5, 6, 7, 8, 9, 1], (0, 8, 9)),
+    "20": (11, [2, 3, 4, 5, 6, 7, 8, 9, 3], (0, 8, 9)),
+    "21": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "22": (10, [3, 1, 3, 1, 3, 1, 3, 1, 3], (0, 8, 9)),
+    "23": (11, [2, 3, 4, 5, 6, 7], (0, 5, 6)),
+    "24": (11, [1, 2, 3, 1, 2, 3, 1, 2, 3], (0, 8, 9)),
+    "25": (11, [2, 3, 4, 5, 6, 7, 8, 9], (0, 8, 9)),
+    "26": (11, [2, 3, 4, 5, 6, 7, 2], (0, 6, 7)),
+    "26b": (11, [2, 3, 4, 5, 6, 7, 2], (2, 8, 9)),
+    "27": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "28": (11, [2, 3, 4, 5, 6, 7, 8], (0, 6, 7)),
+    "29": (10, [], (0, 8, 9)),
+    "30": (10, [2, 0, 0, 0, 0, 1, 2, 1, 2], (0, 8, 9)),
+    "31": (11, [9, 8, 7, 6, 5, 4, 3, 2, 1], (0, 8, 9)),
+    "32": (11, [2, 3, 4, 5, 6, 7], (3, 8, 9)),
+    "33": (11, [2, 3, 4, 5, 6], (4, 8, 9)),
+    "34": (11, [2, 4, 8, 5, 10, 9, 7], (0, 6, 7)),
+    "35": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
+    "36": (11, [2, 4, 8, 5], (5, 8, 9)),
+    "37": (11, [2, 4, 8, 5, 10], (4, 8, 9)),
+    "38": (11, [2, 4, 8, 5, 10, 9], (3, 8, 9)),
+    "39": (11, [2, 4, 8, 5, 10, 9, 7], (2, 8, 9)),
+    "40": (11, [2, 4, 8, 5, 10, 9, 7, 3, 6], (0, 8, 9)),
+    "41": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "42": (11, [2, 3, 4, 5, 6, 7, 8, 9], (1, 8, 9)),
+    "43": (10, [1, 2, 3, 4, 5, 6, 7, 8, 9], (0, 8, 9)),
+    "44": (11, [2, 4, 8, 5, 10, 0, 0, 0, 0], (4, 8, 9)),
+    "45": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "46": (11, [2, 3, 4, 5, 6], (2, 6, 7)),
+    "47": (11, [2, 3, 4, 5, 6], (3, 7, 8)),
+    "48": (11, [2, 3, 4, 5, 6, 7], (2, 7, 8)),
+    "49": (0, [], (0, 8, 9)),
+    "50": (11, [2, 3, 4, 5, 6, 7], (0, 5, 6)),
+    "50b": (11, [2, 3, 4, 5, 6, 7], (3, 8, 9)),
+    "51": (0, [], (0, 8, 9)),
+    "51a": (11, [2, 3, 4, 5, 6, 7], (3, 8, 9)),
+    "51b": (11, [2, 3, 4, 5, 6], (4, 8, 9)),
+    "51c": (10, [2, 1, 2, 1, 2, 1], (3, 8, 9)),
+    "51d": (7, [2, 3, 4, 5, 6], (4, 8, 9)),
+    "51e": (11, [2, 3, 4, 5, 6, 7, 8], (2, 8, 9)),
+    "51f": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
+    "52": (11, [2, 4, 8, 5, 10, 9, 7, 3, 6, 1, 2, 4], (0, 8, 9)),
+    "53": (11, [2, 4, 8, 5, 10, 9, 7, 3, 6, 1, 2, 4], (0, 8, 9)),
+    "54": (11, [2, 3, 4, 5, 6, 7, 2], (0, 8, 9)),
+    "55": (11, [2, 3, 4, 5, 6, 7, 8, 7, 8], (0, 8, 9)),
+    "56": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
+    "57": (10, [1, 2, 1, 2, 1, 2, 1, 2, 1], (0, 8, 9)),
+    "58": (11, [2, 3, 4, 5, 6, 0, 0, 0, 0], (4, 8, 9)),
+    "59": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "60": (10, [2, 1, 2, 1, 2, 1, 2], (2, 8, 9)),
+    "61": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 6, 7)),
+    "62": (10, [2, 1, 2, 1, 2], (2, 6, 7)),
+    "63": (10, [2, 1, 2, 1, 2, 1], (1, 6, 7)),
+    "63b": (10, [2, 1, 2, 1, 2, 1], (3, 8, 9)),
+    "64": (11, [9, 10, 5, 8, 4, 2], (0, 5, 6)),
+    "65": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 6, 7)),
+    "66": (11, [2, 3, 4, 5, 6, 0, 0, 7], (1, 8, 9)),
+    "67": (10, [2, 1, 2, 1, 2, 1, 2], (0, 6, 7)),
+    "68": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (3, 8, 9)),
+    "69": (11, [2, 3, 4, 5, 6, 7, 8], (0, 6, 7)),
+    "69b": (11, [], (0, 8, 9)),
+    "70": (11, [2, 3, 4, 5, 6, 7], (0, 8, 9)),
+    "71": (11, [6, 5, 4, 3, 2, 1], (1, 6, 9)),
+    "72": (10, [2, 1, 2, 1, 2, 1], (3, 8, 9)),
+    "73": (0, [], (0, 8, 9)),
+    "73a": (10, [2, 1, 2, 1, 2, 1], (3, 8, 9)),
+    "73b": (10, [2, 1, 2, 1, 2], (4, 8, 9)),
+    "73c": (7, [2, 1, 2, 1, 2], (4, 8, 9)),
+    "74": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "75": (10, [2, 1, 2, 1, 2], (4, 8, 9)),
+    "76": (11, [2, 3, 4, 5, 6, 7, 8], (1, 6, 7)),
+    "76b": (11, [2, 3, 4, 5, 6, 7, 8], (3, 8, 9)),
+    "77": (11, [1, 2, 3, 4, 5], (5, 9, 9)), // No checksum.
+    "77b": (11, [5, 4, 3, 4, 5], (5, 9, 9)), // No checksum.
+    "78": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "79": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "79b": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 7, 8)),
+    "80": (10, [2, 1, 2, 1, 2], (4, 8, 9)),
+    "80b": (7, [2, 1, 2, 1, 2], (4, 8, 9)),
+    "81": (11, [2, 3, 4, 5, 6, 7], (0, 8, 9)),
+    "82": (11, [2, 3, 4, 5, 6], (4, 8, 9)),
+    "83": (0, [], (0, 8, 9)),
+    "83a": (11, [2, 3, 4, 5, 6, 7], (0, 8, 9)),
+    "83b": (11, [2, 3, 4, 5, 6], (0, 8, 9)),
+    "83c": (7, [2, 3, 4, 5, 6], (0, 8, 9)),
+    "83d": (11, [2, 3, 4, 5, 6, 7, 8], (0, 8, 9)),
+    "84": (0, [], (0, 8, 9)),
+    "84a": (11, [2, 3, 4, 5, 6], (0, 8, 9)),
+    "84b": (7, [2, 3, 4, 5, 6], (0, 8, 9)),
+    "84c": (10, [2, 1, 2, 1, 2], (0, 8, 9)),
+    "85": (0, [], (0, 8, 9)),
+    "85a": (11, [2, 3, 4, 5, 6, 7], (0, 8, 9)),
+    "85b": (11, [2, 3, 4, 5, 6], (0, 8, 9)),
+    "85c": (7, [2, 3, 4, 5, 6], (0, 8, 9)),
+    "85d": (11, [2, 3, 4, 5, 6, 7, 8], (0, 8, 9)),
+    "86": (0, [], (0, 8, 9)),
+    "86a": (10, [2, 1, 2, 1, 2, 1], (0, 8, 9)),
+    "86b": (11, [2, 3, 4, 5, 6, 7], (0, 8, 9)),
+    "87": (0, [], (0, 8, 9)),
+    "87b": (11, [2, 3, 4, 5, 6], (4, 8, 9)),
+    "87c": (7, [2, 3, 4, 5, 6], (4, 8, 9)),
+    "88": (11, [2, 3, 4, 5, 6, 7], (0, 8, 9)),
+    "88b": (11, [2, 3, 4, 5, 6, 7, 8], (0, 8, 9)),
+    "89": (11, [2, 3, 4, 5, 6, 7], (0, 8, 9)),
+    "90": (0, [], (0, 8, 9)),
+    "90a": (11, [2, 3, 4, 5, 6, 7], (0, 8, 9)),
+    "90b": (11, [2, 3, 4, 5, 6], (0, 8, 9)),
+    "90c": (7, [2, 3, 4, 5, 6], (0, 8, 9)),
+    "90d": (9, [2, 3, 4, 5, 6], (0, 8, 9)),
+    "90e": (10, [2, 1, 2, 1, 2], (0, 8, 9)),
+    "90f": (11, [2, 3, 4, 5, 6, 7, 8], (0, 8, 9)),
+    "90g": (7, [2, 1, 2, 1, 2, 1], (0, 8, 9)),
+    "91": (0, [], (0, 8, 9)),
+    "91a": (11, [2, 3, 4, 5, 6, 7], (0, 5, 6)),
+    "91b": (11, [7, 6, 5, 4, 3, 2], (0, 5, 6)),
+    "91c": (11, [2, 3, 4, 0, 5, 6, 7, 8, 9, 10], (0, 9, 6)),
+    "91d": (11, [2, 4, 8, 5, 10, 9], (0, 5, 6)),
+    "92": (10, [3, 7, 1, 3, 7, 1], (0, 8, 9)),
+    "93": (0, [], (0, 8, 9)),
+    "93a": (11, [2, 3, 4, 5, 6], (0, 4, 5)),
+    "93b": (11, [2, 3, 4, 5, 6], (4, 8, 9)),
+    "93c": (7, [2, 3, 4, 5, 6], (0, 4, 5)),
+    "93d": (7, [2, 3, 4, 5, 6], (4, 8, 9)),
+    "94": (10, [1, 2, 1, 2, 1, 2, 1, 2, 1], (0, 8, 9)),
+    "95": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
+    "96": (11, [2, 3, 4, 5, 6, 7, 8, 9, 1], (0, 8, 9)),
+    "96b": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "97": (11, [], (0, 8, 9)),
+    "98": (10, [3, 1, 7, 3, 1, 7, 3], (0, 8, 9)),
+    "99": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
+    "A0": (11, [2, 4, 8, 5, 10, 0, 0, 0, 0], (0, 8, 9)),
+    "A1": (10, [2, 1, 2, 1, 2, 1, 2, 0, 0], (0, 8, 9)),
+    "A2": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "A2b": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
+    "A3": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "A3b": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
+    "A4": (0, [], (0, 8, 9)),
+    "A4a": (11, [2, 3, 4, 5, 6, 7, 0, 0, 0], (0, 8, 9)),
+    "A4b": (7, [2, 3, 4, 5, 6, 7, 0, 0, 0], (0, 8, 9)),
+    "A4c": (11, [2, 3, 4, 5, 6, 0, 0, 0, 0], (0, 8, 9)),
+    "A5": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "A5b": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
+    "A6": (0, [], (0, 8, 9)),
+    "A7": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "A8": (11, [2, 3, 4, 5, 6, 7], (0, 8, 9)),
+    "A8b": (10, [2, 1, 2, 1, 2, 1], (0, 8, 9)),
+    "A9": (10, [3, 7, 1, 3, 7, 1, 3, 7, 1], (0, 8, 9)),
+    "A9b": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
+    "B0": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
+    "B1": (10, [7, 3, 1, 7, 3, 1, 7, 3, 1], (0, 8, 9)),
+    "B1b": (10, [3, 7, 1, 3, 7, 1, 3, 7, 1], (0, 8, 9)),
+    "B2": (0, [], (0, 8, 9)),
+    "B3": (0, [], (0, 8, 9)),
+    "B4": (0, [], (0, 8, 9)),
+    "B5": (10, [7, 3, 1 ,7 , 3, 1, 7, 3, 1], (0, 8, 9)),
+    "B5b": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "B6": (11, [2, 3, 4, 5, 6, 7, 8, 9, 3], (0, 8, 9)),
+    "B6b": (11, [2, 4, 8, 5, 10, 9, 7, 3, 6, 1, 2, 4], (0, 8, 9)),
+    "B7": (10, [3, 7, 1, 3, 7, 1, 3, 7, 1], (0, 8, 9)),
+    "B8": (11, [2, 3, 4, 5, 6, 7, 8, 9, 3], (0, 8, 9)),
+    "B8b": (10, [], (0, 8, 9)),
+    "B9": (11, [1, 3, 2, 1, 3, 2, 1], (2, 8, 9)),
+    "B9b": (11, [1, 2, 3, 4, 5, 6], (3, 8, 9)),
+    "C0": (11, [2, 4, 8, 5, 10, 9, 7, 3, 6, 1, 2, 4], (0, 8, 9)),
+    "C0b": (11, [2, 3, 4, 5, 6, 7, 8, 9, 3], (0, 8, 9)),
+    "C1": (11, [1, 2, 1, 2, 1, 2], (1, 6, 7)),
+    "C1b": (11, [1, 2, 1, 2, 1, 2, 1, 2, 1], (0, 8, 9)),
+    "C2": (10, [3, 1, 3, 1, 3, 1, 3, 1, 3], (0, 8, 9)),
+    "C2b": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "C3": (0, [], (0, 8, 9)),
+    "C4": (0, [], (0, 8, 9)),
+    "C5": (0, [], (0, 8, 9)),
+    "C6": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2], (1, 8, 9)),
+    "C7": (10, [2, 1, 2, 1, 2, 1], (1, 6, 7)),
+    "C7a": (10, [2, 1, 2, 1, 2, 1], (3, 8, 9)),
+    "C7b": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
+    "C8": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "C8b": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
+    "C8c": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
+    "C9": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "C9b": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
+    "D0": (0, [], (0, 8, 9)),
+    "D1": (0, [], (0, 8, 9)),
+    "D2": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
+    "D2b": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "D3": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "D4": (0, [], (0, 8, 9)),
+    "D5": (0, [], (0, 8, 9)),
+    "D5a": (11, [2, 3, 4, 5, 6, 7, 8, 0, 0], (0, 8, 9)),
+    "D5b": (11, [2, 3, 4, 5, 6, 7, 0, 0, 0], (0, 8, 9)),
+    "D5c": (7, [2, 3, 4, 5, 6, 7, 0, 0, 0], (0, 8, 9)),
+    "D5d": (10, [2, 3, 4, 5, 6, 7, 0, 0, 0], (0, 8, 9)),
+    "D6": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
+    "D6b": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "D7": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "D8": (0, [], (0, 8, 9)),
+    "D9": (0, [], (0, 8, 9)),
+    "E0": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "E1": (11, [1, 2, 3, 4, 5, 6, 11, 10, 9], (0, 8, 9)),
+  ];
 
-    // Explicit mappings of bank codes and/or bank accounts to new bank codes and/or bank accounts.
-    // Each entry can have more than one mapping details entry.
-    typealias MappingDetails = (rangeStart: Int, rangeEnd: Int, account: Int, bankCode: Int);
-    static var mappings: [Int: (rule: Int, details: [MappingDetails])] = [:];
+  static private let m10hTransformationTable: [[UInt16]] = [
+    [0, 1, 5, 9, 3, 7, 4, 8, 2, 6],
+    [0, 1, 7, 6, 9, 8, 3, 2, 5, 4],
+    [0, 1, 8, 4, 6, 2, 9, 5, 7, 3],
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  ];
 
-    static let accounts13091054: [Int] = [
-      1718190, 22000225, 49902271, 49902280, 101680029,
-      104200028, 106200025, 108000171, 108000279, 108001364,
-      108001801, 108002514, 300008542, 9130099995, 9130500002,
-      9131100008, 9131600000, 9131610006, 9132200006, 9132400005,
-      9132600004, 9132700017, 9132700025, 9132700033, 9132700041,
-      9133200700, 9133200735, 9133200743, 9133200751, 9133200786,
-      9133200808, 9133200816, 9133200824, 9133200832, 9136700003,
-      9177300010, 9177300060, 9198100002, 9198200007, 9198200104,
-      9198300001, 9331300141, 9331300150, 9331401010, 9331401061,
-      9349010000, 9349100000, 9360500001, 9364902007, 9366101001,
-      9366104000, 9370620030, 9370620080, 9371900010, 9373600005,
-      9402900021, 9605110000, 9614001000, 9615000016, 9615010003,
-      9618500036, 9631020000, 9632600051, 9632600060, 9635000012,
-      9635000020, 9635701002, 9636010003, 9636013002, 9636016001,
-      9636018004, 9636019000, 9636022001, 9636024004, 9636025000,
-      9636027003, 9636028000, 9636045001, 9636048000, 9636051001,
-      9636053004, 9636120003, 9636140004, 9636150000, 9636320002,
-      9636700000, 9638120000, 9639401100, 9639801001, 9670010004,
-      9680610000, 9705010002, 9705403004, 9705404000, 9705509996,
-      9707901001, 9736010000, 9780100050, 9791000030, 9990001003,
-      9990001100, 9990002000, 9990004002, 9991020001, 9991040002,
-      9991060003, 9999999993, 9999999994, 9999999995, 9999999996,
-      9999999997, 9999999998, 9999999999,
-    ];
-  }
+  // Explicit mappings of bank codes and/or bank accounts to new bank codes and/or bank accounts.
+  // Each entry can have more than one mapping details entry.
+  typealias MappingDetails = (rangeStart: Int, rangeEnd: Int, account: Int, bankCode: Int);
+  static private var mappings: [Int: (rule: Int, details: [MappingDetails])] = [:];
+
+  static private let accounts13091054: [Int] = [
+    1718190, 22000225, 49902271, 49902280, 101680029,
+    104200028, 106200025, 108000171, 108000279, 108001364,
+    108001801, 108002514, 300008542, 9130099995, 9130500002,
+    9131100008, 9131600000, 9131610006, 9132200006, 9132400005,
+    9132600004, 9132700017, 9132700025, 9132700033, 9132700041,
+    9133200700, 9133200735, 9133200743, 9133200751, 9133200786,
+    9133200808, 9133200816, 9133200824, 9133200832, 9136700003,
+    9177300010, 9177300060, 9198100002, 9198200007, 9198200104,
+    9198300001, 9331300141, 9331300150, 9331401010, 9331401061,
+    9349010000, 9349100000, 9360500001, 9364902007, 9366101001,
+    9366104000, 9370620030, 9370620080, 9371900010, 9373600005,
+    9402900021, 9605110000, 9614001000, 9615000016, 9615010003,
+    9618500036, 9631020000, 9632600051, 9632600060, 9635000012,
+    9635000020, 9635701002, 9636010003, 9636013002, 9636016001,
+    9636018004, 9636019000, 9636022001, 9636024004, 9636025000,
+    9636027003, 9636028000, 9636045001, 9636048000, 9636051001,
+    9636053004, 9636120003, 9636140004, 9636150000, 9636320002,
+    9636700000, 9638120000, 9639401100, 9639801001, 9670010004,
+    9680610000, 9705010002, 9705403004, 9705404000, 9705509996,
+    9707901001, 9736010000, 9780100050, 9791000030, 9990001003,
+    9990001100, 9990002000, 9990004002, 9991020001, 9991040002,
+    9991060003, 9999999993, 9999999994, 9999999995, 9999999996,
+    9999999997, 9999999998, 9999999999,
+  ];
 
   override class func initialize() {
     super.initialize();
@@ -102,7 +320,7 @@ internal class DEAccountCheck : AccountCheck {
       if content != nil {
         var sourceBankCode: NSString = "";
         var rule = 0;
-        var entry: Static.MappingDetails = (0, 0, 0, 0);
+        var entry: MappingDetails = (0, 0, 0, 0);
 
         var sourceBankCodeIndex = -1;
         var sourceAccountIndex = -1;
@@ -112,7 +330,7 @@ internal class DEAccountCheck : AccountCheck {
         var targetAccountIndex = -1;
 
         for line in content!.componentsSeparatedByCharactersInSet(NSCharacterSet.newlineCharacterSet()) {
-          var s: NSString = line as NSString;
+          var s: NSString = line as! NSString;
           s = s.stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceCharacterSet());
           if s.length == 0 || s.hasPrefix("//")  || s.hasPrefix("#"){
             continue; // Ignore empty and comment lines.
@@ -131,9 +349,9 @@ internal class DEAccountCheck : AccountCheck {
             s = s.substringWithRange(NSMakeRange(1, s.length - 2));
             var index = 0;
             for part in s.componentsSeparatedByCharactersInSet(NSCharacterSet.whitespaceCharacterSet()) {
-              let p = part as NSString;
+              let p = part as! NSString;
               if !p.hasPrefix("#") && p != "_" {
-                rule = (part as String).toInt()!;
+                rule = (part as! String).toInt()!;
                 continue;
               }
 
@@ -198,7 +416,7 @@ internal class DEAccountCheck : AccountCheck {
           }
 
           // Normal mapping line.
-          let parts: [String] = s.componentsSeparatedByCharactersInSet(NSCharacterSet.whitespaceCharacterSet()) as [String];
+          let parts: [String] = s.componentsSeparatedByCharactersInSet(NSCharacterSet.whitespaceCharacterSet()) as! [String];
           if sourceBankCodeIndex > -1 && sourceBankCodeIndex < parts.count {
             sourceBankCode = parts[sourceBankCodeIndex];
           }
@@ -223,235 +441,17 @@ internal class DEAccountCheck : AccountCheck {
           // covered by exactly one rule (or none at all).
           // The source bank code can actually be a list of bank codes.
           for bankCode in sourceBankCode.componentsSeparatedByString(",") {
-            let code = (bankCode as String).toInt()!;
-            var mappingTuple = Static.mappings[code];
+            let code = (bankCode as! String).toInt()!;
+            var mappingTuple = mappings[code];
             if mappingTuple == nil {
               mappingTuple = (rule, []);
             }
             mappingTuple!.details.append(entry);
-            Static.mappings[code] = mappingTuple;
+            mappings[code] = mappingTuple;
           }
         }
       }
     }
-
-    Static.methodParameters["00"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["01"] = (10, [3, 7, 1, 3, 7, 1, 3, 7, 1], (0, 8, 9));
-    Static.methodParameters["02"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 2], (0, 8, 9));
-    Static.methodParameters["03"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["04"] = (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9));
-    Static.methodParameters["05"] = (10, [7, 3, 1, 7, 3, 1, 7, 3, 1], (0, 8, 9));
-    Static.methodParameters["06"] = (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9));
-    Static.methodParameters["07"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9));
-    Static.methodParameters["08"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["10"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9));
-    Static.methodParameters["11"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9));
-    Static.methodParameters["13"] = (10, [2, 1, 2, 1, 2, 1], (1, 6, 7));
-    Static.methodParameters["13b"] = (10, [2, 1, 2, 1, 2, 1], (3, 8, 9));
-    Static.methodParameters["14"] = (11, [2, 3, 4, 5, 6, 7], (0, 8, 9));
-    Static.methodParameters["15"] = (11, [2, 3, 4, 5], (0, 8, 9));
-    Static.methodParameters["16"] = (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9));
-    Static.methodParameters["17"] = (11, [1, 2, 1, 2, 1, 2], (1, 6, 9));
-    Static.methodParameters["18"] = (10, [3, 9, 7, 1, 3, 9, 7, 1, 3], (0, 8, 9));
-    Static.methodParameters["19"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 1], (0, 8, 9));
-    Static.methodParameters["20"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 3], (0, 8, 9));
-    Static.methodParameters["21"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["22"] = (10, [3, 1, 3, 1, 3, 1, 3, 1, 3], (0, 8, 9));
-    Static.methodParameters["23"] = (11, [2, 3, 4, 5, 6, 7], (0, 5, 6));
-    Static.methodParameters["24"] = (11, [1, 2, 3, 1, 2, 3, 1, 2, 3], (0, 8, 9));
-    Static.methodParameters["25"] = (11, [2, 3, 4, 5, 6, 7, 8, 9], (0, 8, 9));
-    Static.methodParameters["26"] = (11, [2, 3, 4, 5, 6, 7, 2], (0, 6, 7));
-    Static.methodParameters["26b"] = (11, [2, 3, 4, 5, 6, 7, 2], (2, 8, 9));
-    Static.methodParameters["27"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["28"] = (11, [2, 3, 4, 5, 6, 7, 8], (0, 6, 7));
-    Static.methodParameters["29"] = (10, [], (0, 8, 9));
-    Static.methodParameters["30"] = (10, [2, 0, 0, 0, 0, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["31"] = (11, [9, 8, 7, 6, 5, 4, 3, 2, 1], (0, 8, 9));
-    Static.methodParameters["32"] = (11, [2, 3, 4, 5, 6, 7], (3, 8, 9));
-    Static.methodParameters["33"] = (11, [2, 3, 4, 5, 6], (4, 8, 9));
-    Static.methodParameters["34"] = (11, [2, 4, 8, 5, 10, 9, 7], (0, 6, 7));
-    Static.methodParameters["35"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9));
-    Static.methodParameters["36"] = (11, [2, 4, 8, 5], (5, 8, 9));
-    Static.methodParameters["37"] = (11, [2, 4, 8, 5, 10], (4, 8, 9));
-    Static.methodParameters["38"] = (11, [2, 4, 8, 5, 10, 9], (3, 8, 9));
-    Static.methodParameters["39"] = (11, [2, 4, 8, 5, 10, 9, 7], (2, 8, 9));
-    Static.methodParameters["40"] = (11, [2, 4, 8, 5, 10, 9, 7, 3, 6], (0, 8, 9));
-    Static.methodParameters["41"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["42"] = (11, [2, 3, 4, 5, 6, 7, 8, 9], (1, 8, 9));
-    Static.methodParameters["43"] = (10, [1, 2, 3, 4, 5, 6, 7, 8, 9], (0, 8, 9));
-    Static.methodParameters["44"] = (11, [2, 4, 8, 5, 10, 0, 0, 0, 0], (4, 8, 9));
-    Static.methodParameters["45"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["46"] = (11, [2, 3, 4, 5, 6], (2, 6, 7));
-    Static.methodParameters["47"] = (11, [2, 3, 4, 5, 6], (3, 7, 8));
-    Static.methodParameters["48"] = (11, [2, 3, 4, 5, 6, 7], (2, 7, 8));
-    Static.methodParameters["49"] = (0, [], (0, 8, 9));
-    Static.methodParameters["50"] = (11, [2, 3, 4, 5, 6, 7], (0, 5, 6));
-    Static.methodParameters["50b"] = (11, [2, 3, 4, 5, 6, 7], (3, 8, 9));
-    Static.methodParameters["51"] = (0, [], (0, 8, 9));
-    Static.methodParameters["51a"] = (11, [2, 3, 4, 5, 6, 7], (3, 8, 9));
-    Static.methodParameters["51b"] = (11, [2, 3, 4, 5, 6], (4, 8, 9));
-    Static.methodParameters["51c"] = (10, [2, 1, 2, 1, 2, 1], (3, 8, 9));
-    Static.methodParameters["51d"] = (7, [2, 3, 4, 5, 6], (4, 8, 9));
-    Static.methodParameters["51e"] = (11, [2, 3, 4, 5, 6, 7, 8], (2, 8, 9));
-    Static.methodParameters["51f"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9));
-    Static.methodParameters["52"] = (11, [2, 4, 8, 5, 10, 9, 7, 3, 6, 1, 2, 4], (0, 8, 9));
-    Static.methodParameters["53"] = (11, [2, 4, 8, 5, 10, 9, 7, 3, 6, 1, 2, 4], (0, 8, 9));
-    Static.methodParameters["54"] = (11, [2, 3, 4, 5, 6, 7, 2], (0, 8, 9));
-    Static.methodParameters["55"] = (11, [2, 3, 4, 5, 6, 7, 8, 7, 8], (0, 8, 9));
-    Static.methodParameters["56"] = (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9));
-    Static.methodParameters["57"] = (10, [1, 2, 1, 2, 1, 2, 1, 2, 1], (0, 8, 9));
-    Static.methodParameters["58"] = (11, [2, 3, 4, 5, 6, 0, 0, 0, 0], (4, 8, 9));
-    Static.methodParameters["59"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["60"] = (10, [2, 1, 2, 1, 2, 1, 2], (2, 8, 9));
-    Static.methodParameters["61"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 6, 7));
-    Static.methodParameters["62"] = (10, [2, 1, 2, 1, 2], (2, 6, 7));
-    Static.methodParameters["63"] = (10, [2, 1, 2, 1, 2, 1], (1, 6, 7));
-    Static.methodParameters["63b"] = (10, [2, 1, 2, 1, 2, 1], (3, 8, 9));
-    Static.methodParameters["64"] = (11, [9, 10, 5, 8, 4, 2], (0, 5, 6));
-    Static.methodParameters["65"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 6, 7));
-    Static.methodParameters["66"] = (11, [2, 3, 4, 5, 6, 0, 0, 7], (1, 8, 9));
-    Static.methodParameters["67"] = (10, [2, 1, 2, 1, 2, 1, 2], (0, 6, 7));
-    Static.methodParameters["68"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (3, 8, 9));
-    Static.methodParameters["69"] = (11, [2, 3, 4, 5, 6, 7, 8], (0, 6, 7));
-    Static.methodParameters["69b"] = (11, [], (0, 8, 9));
-    Static.methodParameters["70"] = (11, [2, 3, 4, 5, 6, 7], (0, 8, 9));
-    Static.methodParameters["71"] = (11, [6, 5, 4, 3, 2, 1], (1, 6, 9));
-    Static.methodParameters["72"] = (10, [2, 1, 2, 1, 2, 1], (3, 8, 9));
-    Static.methodParameters["73"] = (0, [], (0, 8, 9));
-    Static.methodParameters["73a"] = (10, [2, 1, 2, 1, 2, 1], (3, 8, 9));
-    Static.methodParameters["73b"] = (10, [2, 1, 2, 1, 2], (4, 8, 9));
-    Static.methodParameters["73c"] = (7, [2, 1, 2, 1, 2], (4, 8, 9));
-    Static.methodParameters["74"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["75"] = (10, [2, 1, 2, 1, 2], (4, 8, 9));
-    Static.methodParameters["76"] = (11, [2, 3, 4, 5, 6, 7, 8], (1, 6, 7));
-    Static.methodParameters["76b"] = (11, [2, 3, 4, 5, 6, 7, 8], (3, 8, 9));
-    Static.methodParameters["77"] = (11, [1, 2, 3, 4, 5], (5, 9, 9)); // No checksum.
-    Static.methodParameters["77b"] = (11, [5, 4, 3, 4, 5], (5, 9, 9)); // No checksum.
-    Static.methodParameters["78"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["79"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["79b"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 7, 8));
-    Static.methodParameters["80"] = (10, [2, 1, 2, 1, 2], (4, 8, 9));
-    Static.methodParameters["80b"] = (7, [2, 1, 2, 1, 2], (4, 8, 9));
-    Static.methodParameters["81"] = (11, [2, 3, 4, 5, 6, 7], (0, 8, 9));
-    Static.methodParameters["82"] = (11, [2, 3, 4, 5, 6], (4, 8, 9));
-    Static.methodParameters["83"] = (0, [], (0, 8, 9));
-    Static.methodParameters["83a"] = (11, [2, 3, 4, 5, 6, 7], (0, 8, 9));
-    Static.methodParameters["83b"] = (11, [2, 3, 4, 5, 6], (0, 8, 9));
-    Static.methodParameters["83c"] = (7, [2, 3, 4, 5, 6], (0, 8, 9));
-    Static.methodParameters["83d"] = (11, [2, 3, 4, 5, 6, 7, 8], (0, 8, 9));
-    Static.methodParameters["84"] = (0, [], (0, 8, 9));
-    Static.methodParameters["84a"] = (11, [2, 3, 4, 5, 6], (0, 8, 9));
-    Static.methodParameters["84b"] = (7, [2, 3, 4, 5, 6], (0, 8, 9));
-    Static.methodParameters["84c"] = (10, [2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["85"] = (0, [], (0, 8, 9));
-    Static.methodParameters["85a"] = (11, [2, 3, 4, 5, 6, 7], (0, 8, 9));
-    Static.methodParameters["85b"] = (11, [2, 3, 4, 5, 6], (0, 8, 9));
-    Static.methodParameters["85c"] = (7, [2, 3, 4, 5, 6], (0, 8, 9));
-    Static.methodParameters["85d"] = (11, [2, 3, 4, 5, 6, 7, 8], (0, 8, 9));
-    Static.methodParameters["86"] = (0, [], (0, 8, 9));
-    Static.methodParameters["86a"] = (10, [2, 1, 2, 1, 2, 1], (0, 8, 9));
-    Static.methodParameters["86b"] = (11, [2, 3, 4, 5, 6, 7], (0, 8, 9));
-    Static.methodParameters["87"] = (0, [], (0, 8, 9));
-    Static.methodParameters["87b"] = (11, [2, 3, 4, 5, 6], (4, 8, 9));
-    Static.methodParameters["87c"] = (7, [2, 3, 4, 5, 6], (4, 8, 9));
-    Static.methodParameters["88"] = (11, [2, 3, 4, 5, 6, 7], (0, 8, 9));
-    Static.methodParameters["88b"] = (11, [2, 3, 4, 5, 6, 7, 8], (0, 8, 9));
-    Static.methodParameters["89"] = (11, [2, 3, 4, 5, 6, 7], (0, 8, 9));
-    Static.methodParameters["90"] = (0, [], (0, 8, 9));
-    Static.methodParameters["90a"] = (11, [2, 3, 4, 5, 6, 7], (0, 8, 9));
-    Static.methodParameters["90b"] = (11, [2, 3, 4, 5, 6], (0, 8, 9));
-    Static.methodParameters["90c"] = (7, [2, 3, 4, 5, 6], (0, 8, 9));
-    Static.methodParameters["90d"] = (9, [2, 3, 4, 5, 6], (0, 8, 9));
-    Static.methodParameters["90e"] = (10, [2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["90f"] = (11, [2, 3, 4, 5, 6, 7, 8], (0, 8, 9));
-    Static.methodParameters["90g"] = (7, [2, 1, 2, 1, 2, 1], (0, 8, 9));
-    Static.methodParameters["91"] = (0, [], (0, 8, 9));
-    Static.methodParameters["91a"] = (11, [2, 3, 4, 5, 6, 7], (0, 5, 6));
-    Static.methodParameters["91b"] = (11, [7, 6, 5, 4, 3, 2], (0, 5, 6));
-    Static.methodParameters["91c"] = (11, [2, 3, 4, 0, 5, 6, 7, 8, 9, 10], (0, 9, 6));
-    Static.methodParameters["91d"] = (11, [2, 4, 8, 5, 10, 9], (0, 5, 6));
-    Static.methodParameters["92"] = (10, [3, 7, 1, 3, 7, 1], (0, 8, 9));
-    Static.methodParameters["93"] = (0, [], (0, 8, 9));
-    Static.methodParameters["93a"] = (11, [2, 3, 4, 5, 6], (0, 4, 5));
-    Static.methodParameters["93b"] = (11, [2, 3, 4, 5, 6], (4, 8, 9));
-    Static.methodParameters["93c"] = (7, [2, 3, 4, 5, 6], (0, 4, 5));
-    Static.methodParameters["93d"] = (7, [2, 3, 4, 5, 6], (4, 8, 9));
-    Static.methodParameters["94"] = (10, [1, 2, 1, 2, 1, 2, 1, 2, 1], (0, 8, 9));
-    Static.methodParameters["95"] = (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9));
-    Static.methodParameters["96"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 1], (0, 8, 9));
-    Static.methodParameters["96b"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["97"] = (11, [], (0, 8, 9));
-    Static.methodParameters["98"] = (10, [3, 1, 7, 3, 1, 7, 3], (0, 8, 9));
-    Static.methodParameters["99"] = (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9));
-    Static.methodParameters["A0"] = (11, [2, 4, 8, 5, 10, 0, 0, 0, 0], (0, 8, 9));
-    Static.methodParameters["A1"] = (10, [2, 1, 2, 1, 2, 1, 2, 0, 0], (0, 8, 9));
-    Static.methodParameters["A2"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["A2b"] = (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9));
-    Static.methodParameters["A3"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["A3b"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9));
-    Static.methodParameters["A4"] = (0, [], (0, 8, 9));
-    Static.methodParameters["A4a"] = (11, [2, 3, 4, 5, 6, 7, 0, 0, 0], (0, 8, 9));
-    Static.methodParameters["A4b"] = (7, [2, 3, 4, 5, 6, 7, 0, 0, 0], (0, 8, 9));
-    Static.methodParameters["A4c"] = (11, [2, 3, 4, 5, 6, 0, 0, 0, 0], (0, 8, 9));
-    Static.methodParameters["A5"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["A5b"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9));
-    Static.methodParameters["A6"] = (0, [], (0, 8, 9));
-    Static.methodParameters["A7"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["A8"] = (11, [2, 3, 4, 5, 6, 7], (0, 8, 9));
-    Static.methodParameters["A8b"] = (10, [2, 1, 2, 1, 2, 1], (0, 8, 9));
-    Static.methodParameters["A9"] = (10, [3, 7, 1, 3, 7, 1, 3, 7, 1], (0, 8, 9));
-    Static.methodParameters["A9b"] = (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9));
-    Static.methodParameters["B0"] = (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9));
-    Static.methodParameters["B1"] = (10, [7, 3, 1, 7, 3, 1, 7, 3, 1], (0, 8, 9));
-    Static.methodParameters["B1b"] = (10, [3, 7, 1, 3, 7, 1, 3, 7, 1], (0, 8, 9));
-    Static.methodParameters["B2"] = (0, [], (0, 8, 9));
-    Static.methodParameters["B3"] = (0, [], (0, 8, 9));
-    Static.methodParameters["B4"] = (0, [], (0, 8, 9));
-    Static.methodParameters["B5"] = (10, [7, 3, 1 ,7 , 3, 1, 7, 3, 1], (0, 8, 9));
-    Static.methodParameters["B5b"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["B6"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 3], (0, 8, 9));
-    Static.methodParameters["B6b"] = (11, [2, 4, 8, 5, 10, 9, 7, 3, 6, 1, 2, 4], (0, 8, 9));
-    Static.methodParameters["B7"] = (10, [3, 7, 1, 3, 7, 1, 3, 7, 1], (0, 8, 9));
-    Static.methodParameters["B8"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 3], (0, 8, 9));
-    Static.methodParameters["B8b"] = (10, [], (0, 8, 9));
-    Static.methodParameters["B9"] = (11, [1, 3, 2, 1, 3, 2, 1], (2, 8, 9));
-    Static.methodParameters["B9b"] = (11, [1, 2, 3, 4, 5, 6], (3, 8, 9));
-    Static.methodParameters["C0"] = (11, [2, 4, 8, 5, 10, 9, 7, 3, 6, 1, 2, 4], (0, 8, 9));
-    Static.methodParameters["C0b"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 3], (0, 8, 9));
-    Static.methodParameters["C1"] = (11, [1, 2, 1, 2, 1, 2], (1, 6, 7));
-    Static.methodParameters["C1b"] = (11, [1, 2, 1, 2, 1, 2, 1, 2, 1], (0, 8, 9));
-    Static.methodParameters["C2"] = (10, [3, 1, 3, 1, 3, 1, 3, 1, 3], (0, 8, 9));
-    Static.methodParameters["C2b"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["C3"] = (0, [], (0, 8, 9));
-    Static.methodParameters["C4"] = (0, [], (0, 8, 9));
-    Static.methodParameters["C5"] = (0, [], (0, 8, 9));
-    Static.methodParameters["C6"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2], (1, 8, 9));
-    Static.methodParameters["C7"] = (10, [2, 1, 2, 1, 2, 1], (1, 6, 7));
-    Static.methodParameters["C7a"] = (10, [2, 1, 2, 1, 2, 1], (3, 8, 9));
-    Static.methodParameters["C7b"] = (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9));
-    Static.methodParameters["C8"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["C8b"] = (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9));
-    Static.methodParameters["C8c"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9));
-    Static.methodParameters["C9"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["C9b"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9));
-    Static.methodParameters["D0"] = (0, [], (0, 8, 9));
-    Static.methodParameters["D1"] = (0, [], (0, 8, 9));
-    Static.methodParameters["D2"] = (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9));
-    Static.methodParameters["D2b"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["D3"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["D4"] = (0, [], (0, 8, 9));
-    Static.methodParameters["D5"] = (0, [], (0, 8, 9));
-    Static.methodParameters["D5a"] = (11, [2, 3, 4, 5, 6, 7, 8, 0, 0], (0, 8, 9));
-    Static.methodParameters["D5b"] = (11, [2, 3, 4, 5, 6, 7, 0, 0, 0], (0, 8, 9));
-    Static.methodParameters["D5c"] = (7, [2, 3, 4, 5, 6, 7, 0, 0, 0], (0, 8, 9));
-    Static.methodParameters["D5d"] = (10, [2, 3, 4, 5, 6, 7, 0, 0, 0], (0, 8, 9));
-    Static.methodParameters["D6"] = (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9));
-    Static.methodParameters["D6b"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["D7"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["D8"] = (0, [], (0, 8, 9));
-    Static.methodParameters["D9"] = (0, [], (0, 8, 9));
-    Static.methodParameters["E0"] = (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9));
-    Static.methodParameters["E1"] = (11, [1, 2, 3, 4, 5, 6, 11, 10, 9], (0, 8, 9));
   }
 
   class func intFromRange(range: Slice<UInt16>) -> Int {
@@ -481,8 +481,8 @@ internal class DEAccountCheck : AccountCheck {
         method = DERules.checkSumMethodForInstitute(bankCode);
       }
     }
-    let (valid, realresult, _) = checkWithMethod(method, &account, &bankCode, forIBAN, true, false); // False for checkSpecial as we do that above already.
-    return (valid, realresult);
+    let (valid, realResult, _) = checkWithMethod(method, &account, &bankCode, forIBAN, true, false); // False for checkSpecial as we do that above already.
+    return (valid, realResult);
   }
 
   /// Runs the specific checksum method on the given account. Returns validity, the result flag and
@@ -500,7 +500,7 @@ internal class DEAccountCheck : AccountCheck {
     var method = startMethod;
     var workSlice: Slice<UInt16> = [];
     var expectedCheckSum: UInt16 = 100;
-    var parameters: Static.MethodParameters = (0, [], (0, 8, 9));
+    var parameters: MethodParameters = (0, [], (0, 8, 9));
     var number10: [UInt16] = []; // Alway 10 digits long.
 
     //----------------------------------------------------------------------------------------------
@@ -508,7 +508,7 @@ internal class DEAccountCheck : AccountCheck {
     // Switches the current computation method and loading its paramters (if there are own ones).
     func useMethod(newMethod: NSString) {
       method = newMethod.substringToIndex(2); // Only use the base method number for the switch var.
-      if let p = Static.methodParameters[newMethod as String] {
+      if let p = self.methodParameters[newMethod as String] {
         parameters = p;
         workSlice = number10[parameters.indices.start...parameters.indices.stop];
         expectedCheckSum = number10[parameters.indices.check];
@@ -523,7 +523,7 @@ internal class DEAccountCheck : AccountCheck {
       return (true, .NoChecksum, -1); // No checksum computation for these methods.
     }
 
-    if let p = Static.methodParameters[method] {
+    if let p = methodParameters[method] {
       parameters = p;
     } else {
       return (false, .NoMethod, -1);
@@ -543,7 +543,7 @@ internal class DEAccountCheck : AccountCheck {
 
     // Fill the original number on the left with zeros to get to a 10 digits number.
     // Determine the exact number of leading zeros for some special checks.
-    let leadingZeros = 10 - countElements(stripped);
+    let leadingZeros = 10 - count(stripped);
     temp = [UInt16]((String(count: leadingZeros, repeatedValue: "0" as Character) + stripped).utf16);
     for n in temp {
       number10.append(n - 48);
@@ -617,7 +617,7 @@ internal class DEAccountCheck : AccountCheck {
       useMethod("26b");
 
     case "32" where bankCode == "13091054" && forIBAN: // Pommersche Voksbank, special accounts always valid for IBAN.
-        if contains(Static.accounts13091054, accountAsInt) {
+        if contains(accounts13091054, accountAsInt) {
           return (true, .NoChecksum, -1); // No checks for checksum in those special accounts.
         }
       break;
@@ -1690,7 +1690,7 @@ internal class DEAccountCheck : AccountCheck {
     var sum: UInt16 = 0;
     var lineIndex = 0; // Line (0-3) in the transformation table.
     for digit in reverse(digits) {
-      sum += Static.m10hTransformationTable[lineIndex][Int(digit)];
+      sum += m10hTransformationTable[lineIndex][Int(digit)];
       if ++lineIndex == 4 {
         lineIndex = 0;
       }
@@ -1821,7 +1821,7 @@ internal class DEAccountCheck : AccountCheck {
   // MARK: - full methods
 
   private class func method27(accountAsInt: Int, _ number10: [UInt16]) -> Bool {
-    if let parameters = Static.methodParameters["27"] {
+    if let parameters = methodParameters["27"] {
       let workSlice = number10[parameters.indices.start...parameters.indices.stop];
       let expectedCheckSum = number10[parameters.indices.check];
       if accountAsInt < 1000000 { // Simple checksum computation only for accounts less than 1 000 000.
@@ -1842,7 +1842,7 @@ internal class DEAccountCheck : AccountCheck {
     // 4 step approach here. Try one variant after the other until one succeeds.
     // However, there's an exception for certain accounts. They use a different 2-step approach.
     if number10[2] == 9 {
-      if let parameters = Static.methodParameters["51e"] {
+      if let parameters = methodParameters["51e"] {
         let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop], modulus: parameters.modulus,
           weights: parameters.weights, mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
         if number10[parameters.indices.check] == checksum {
@@ -1850,7 +1850,7 @@ internal class DEAccountCheck : AccountCheck {
         }
       }
 
-      if let parameters = Static.methodParameters["51f"] {
+      if let parameters = methodParameters["51f"] {
         let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop], modulus: parameters.modulus,
           weights: parameters.weights, mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
         if number10[parameters.indices.check] == checksum {
@@ -1860,7 +1860,7 @@ internal class DEAccountCheck : AccountCheck {
       return false;
     }
 
-    if let parameters = Static.methodParameters["51a"] {
+    if let parameters = methodParameters["51a"] {
       let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop], modulus: parameters.modulus,
         weights: parameters.weights, mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
       if number10[parameters.indices.check] == checksum {
@@ -1868,7 +1868,7 @@ internal class DEAccountCheck : AccountCheck {
       }
     }
 
-    if let parameters = Static.methodParameters["51b"] {
+    if let parameters = methodParameters["51b"] {
       let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop], modulus: parameters.modulus,
         weights: parameters.weights, mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
       if number10[parameters.indices.check] == checksum {
@@ -1876,7 +1876,7 @@ internal class DEAccountCheck : AccountCheck {
       }
     }
 
-    if let parameters = Static.methodParameters["51c"] {
+    if let parameters = methodParameters["51c"] {
       let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop], modulus: parameters.modulus,
         weights: parameters.weights, mappings: [.MapToZero, .DontMap, .ReturnDifference]);
       if number10[parameters.indices.check] == checksum {
@@ -1888,7 +1888,7 @@ internal class DEAccountCheck : AccountCheck {
       return false;
     }
 
-    if let parameters = Static.methodParameters["51d"] {
+    if let parameters = methodParameters["51d"] {
       let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop], modulus: parameters.modulus,
         weights: parameters.weights, mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
       if number10[parameters.indices.check] == checksum {
@@ -1908,7 +1908,7 @@ internal class DEAccountCheck : AccountCheck {
       return false;
     }
 
-    if let parameters = Static.methodParameters["68"] {
+    if let parameters = methodParameters["68"] {
       var workSlice: Slice<UInt16>;
       if number.count == 10 {
         if number[3] != 9 {
@@ -2046,7 +2046,7 @@ internal class DEAccountCheck : AccountCheck {
 
   private class func method93(number10: [UInt16]) -> Bool {
     for subMethod in ["93a", "93b", "93c", "93d"] {
-      if let parameters = Static.methodParameters[subMethod] {
+      if let parameters = methodParameters[subMethod] {
         let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop],
           modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
@@ -2068,7 +2068,7 @@ internal class DEAccountCheck : AccountCheck {
     case 10:
       if number[0] == 9 { // Use method "20" for these numbers.
         // Documentation is not clear here. Only use 20 with 52's params or with 20's params?
-        if let parameters = Static.methodParameters["20"] {
+        if let parameters = methodParameters["20"] {
           let workSlice = number[parameters.indices.start...parameters.indices.stop];
           var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
             mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
@@ -2129,7 +2129,7 @@ internal class DEAccountCheck : AccountCheck {
   /// If so either account or bank code (or both) are replaced according to the mapping and true is returned.
   /// If there's no mapping then false is returned.
   internal class func checkSpecialAccount(inout account: String, inout bankCode: String) -> Bool {
-    if let mappingTuple = Static.mappings[bankCode.toInt()!] {
+    if let mappingTuple = mappings[bankCode.toInt()!] {
       // One or more mapping details. Take the first that applies.
       for entry in mappingTuple.details {
         if entry.rangeStart == 0 && entry.account == 0 {
@@ -2156,7 +2156,7 @@ internal class DEAccountCheck : AccountCheck {
   /// only if we have an account clusters for the given old bank code. We can then see if there's at
   /// least one cluster for the same IBAN rule (so we ensure account and bank code belong together).
   class func bankCodeFromAccountCluster(account: Int, bankCode: Int) -> Int {
-    if let mappingTuple = Static.mappings[bankCode] {
+    if let mappingTuple = mappings[bankCode] {
       return bankCodeFromAccount(account, forRule: mappingTuple.rule)
     }
 
@@ -2167,7 +2167,7 @@ internal class DEAccountCheck : AccountCheck {
   /// not a generic one in the official database. This mapping totally depends on the account,
   /// not the original bank code.
   class func bankCodeFromAccount(account: Int, forRule rule: Int) -> Int {
-    for mappingTuple in Static.mappings {
+    for mappingTuple in mappings {
       if mappingTuple.1.rule != rule {
         continue;
       }

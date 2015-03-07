@@ -189,11 +189,11 @@ class IBANtoolsTests: XCTestCase {
       var accountNumber = entry.account;
       var bankCodeNumber = entry.bank;
       if let details = countryData[entry.code] {
-        if accountNumber.utf16Count < details.accountLength {
-          accountNumber = String(count: details.accountLength - accountNumber.utf16Count, repeatedValue: "0" as Character) + accountNumber;
+        if count(accountNumber) < details.accountLength {
+          accountNumber = String(count: details.accountLength - count(accountNumber), repeatedValue: "0" as Character) + accountNumber;
         }
-        if bankCodeNumber.utf16Count < details.bankCodeLength {
-          bankCodeNumber = String(count: details.bankCodeLength - bankCodeNumber.utf16Count, repeatedValue: "0" as Character) + bankCodeNumber;
+        if count(bankCodeNumber) < details.bankCodeLength {
+          bankCodeNumber = String(count: details.bankCodeLength - count(bankCodeNumber), repeatedValue: "0" as Character) + bankCodeNumber;
         }
       }
       let expected = entry.code + entry.checksum + bankCodeNumber + accountNumber;

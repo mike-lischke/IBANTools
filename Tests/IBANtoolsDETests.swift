@@ -48,7 +48,7 @@ class IBANtoolsDETests: XCTestCase {
     _ checkAccount: Bool = false) -> Bool {
 
       let ibanResult = IBANtools.convertToIBAN(&account, bankCode: &bank, countryCode: country, validateAccount: checkAccount);
-      if ibanResult.iban.utf16Count == 0 {
+      if count(ibanResult.iban) == 0 {
         let result = (ibanResult.iban == expected.iban) && (ibanResult.result == expected.ibanResult);
         if !result {
           println("\naccount: \(account), bank: \(bank), expected: (\(expected.0), " +

@@ -19,7 +19,7 @@
 
 import Foundation
 
-public enum IBANToolsResult: Int {
+@objc public enum IBANToolsResult: Int {
   case DefaultIBAN // The default rule for generating an IBAN was used.
   case OK          // Conversion/check was ok.
   case NoBIC       // No known BIC.
@@ -63,8 +63,7 @@ typealias ConversionResult = (iban: String, result: IBANToolsResult);
 
 /// Base classes for country specific rules.
 /// Note: @objc and the NSObject base class are necessary to make dynamic instantiation working.
-@objc(IBANRules)
-class IBANRules : NSObject {
+@objc class IBANRules : NSObject {
   class func validWithoutChecksum(account: String, _ bankCode: String) -> Bool {
     return false;
   }
@@ -78,16 +77,14 @@ class IBANRules : NSObject {
   }
 }
 
-@objc(AccountCheck)
-class AccountCheck : NSObject {
+@objc class AccountCheck : NSObject {
   class func isValidAccount(inout account: String, inout _ bankCode: String, _ forIBAN: Bool) ->
     (valid: Bool, result: IBANToolsResult) {
     return (false, .NoMethod);
   }
 }
 
-@objc(IBANtools)
-public class IBANtools {
+@objc public class IBANtools {
 
   /// Validates the given IBAN. Returns true if the number is valid, otherwise false.
   public class func isValidIBAN(iban: String) -> Bool {
@@ -124,7 +121,7 @@ public class IBANtools {
 
     account = account.stringByReplacingOccurrencesOfString(" ", withString: "");
     bankCode = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
-    if account.utf16Count == 0 || bankCode.utf16Count == 0 || countryCode.utf16Count != 2 {
+    if count(account) == 0 || count(bankCode) == 0 || count(countryCode) != 2 {
       return (false, .WrongValue);
     }
 
@@ -137,7 +134,7 @@ public class IBANtools {
     if let details = countryData[countryCode] {
       let clazz: AnyClass! = NSClassFromString(countryCode + "AccountCheck");
       if clazz != nil {
-        let rulesClass = clazz as AccountCheck.Type;
+        let rulesClass = clazz as! AccountCheck.Type;
         return rulesClass.isValidAccount(&account, &bankCode, forIBAN);
       }
     }
@@ -163,7 +160,7 @@ public class IBANtools {
   /// this lookup only works for those countries with a specific implementation (DE atm).
   public class func bicForBankCode(var bankCode: String, var countryCode: String) -> (bic: String, result: IBANToolsResult) {
     bankCode = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
-    if bankCode.utf16Count == 0 || countryCode.utf16Count != 2 {
+    if count(bankCode) == 0 || count(countryCode) != 2 {
       return ("", .WrongValue);
     }
 
@@ -176,7 +173,7 @@ public class IBANtools {
     if let details = countryData[countryCode] {
       let clazz: AnyClass! = NSClassFromString(countryCode + "Rules");
       if clazz != nil {
-        let rulesClass = clazz as IBANRules.Type;
+        let rulesClass = clazz as! IBANRules.Type;
         return rulesClass.bicForBankCode(bankCode);
       }
     }
@@ -244,7 +241,7 @@ public class IBANtools {
 
       account = account.stringByReplacingOccurrencesOfString(" ", withString: "");
       bankCode = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
-      if account.utf16Count == 0 || bankCode.utf16Count == 0 || countryCode.utf16Count != 2 {
+      if count(account) == 0 || count(bankCode) == 0 || count(countryCode) != 2 {
         return ("", .WrongValue);
       }
 
@@ -264,7 +261,7 @@ public class IBANtools {
         // Some accounts can be used for IBANs even though they do not validate.
         var ignoreChecksum = false;
         if clazz != nil {
-          ignoreChecksum = (clazz as IBANRules.Type).validWithoutChecksum(account, bankCode);
+          ignoreChecksum = (clazz as! IBANRules.Type).validWithoutChecksum(account, bankCode);
         }
         if validateAccount && !ignoreChecksum {
           let accountResult = isValidAccount(&account, bankCode: &bankCode, countryCode: countryCode, forIBAN: true)
@@ -273,17 +270,17 @@ public class IBANtools {
           }
         }
         if clazz != nil {
-          let rulesClass = clazz as IBANRules.Type;
+          let rulesClass = clazz as! IBANRules.Type;
           result = rulesClass.convertToIBAN(&account, &bankCode);
         }
 
         // Do length check *after* the country specific rules. They might rely on the exact
         // account number (e.g. for special accounts).
-        if account.utf16Count < details.accountLength {
-          account = String(count: details.accountLength - account.utf16Count, repeatedValue: "0" as Character) + account;
+        if count(account) < details.accountLength {
+          account = String(count: details.accountLength - count(account), repeatedValue: "0" as Character) + account;
         }
-        if bankCode.utf16Count < details.bankCodeLength {
-          bankCode = String(count: details.bankCodeLength - bankCode.utf16Count, repeatedValue: "0" as Character) + bankCode;
+        if count(bankCode) < details.bankCodeLength {
+          bankCode = String(count: details.bankCodeLength - count(bankCode), repeatedValue: "0" as Character) + bankCode;
         }
       } else {
         if validateAccount {
@@ -296,7 +293,7 @@ public class IBANtools {
 
       if result.1 == .DefaultIBAN {
         var checksum = String(computeChecksum(countryCode + "00" + bankCode.uppercaseString + account.uppercaseString));
-        if checksum.utf16Count < 2 {
+        if count(checksum) < 2 {
           checksum = "0" + checksum;
         }
 
