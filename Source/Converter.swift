@@ -18,6 +18,7 @@
  */
 
 import Foundation
+import AppKit
 
 @objc public enum IBANToolsResult: Int {
   case DefaultIBAN // The default rule for generating an IBAN was used.
@@ -59,6 +60,23 @@ import Foundation
   }
 }
 
+/// Institute info for use in Swift. For obj-c we use a dict with keys as written in the comments.
+public struct InstituteInfo {
+  public let mfiID: String;       // Obj-c dict key: MFIID
+  public let bic: String;         // BIC
+  public let countryCode: String; // COUNTRY
+  public let name: String;        // NAME
+  public let box: String;         // BOX
+  public let address: String;     // ADDRESS
+  public let postal: String;      // POSTAL
+  public let city: String;        // CITY
+  public let category: String;    // CATEGORY
+  public let domicile: String;    // DOMICILE
+  public let headName: String;    // HEAD
+  public let reserve: Bool;       // RESERVE
+  public let exempt: Bool;        // EXEMPT
+}
+
 typealias ConversionResult = (iban: String, result: IBANToolsResult);
 
 /// Base classes for country specific rules.
@@ -84,14 +102,99 @@ typealias ConversionResult = (iban: String, result: IBANToolsResult);
   }
 }
 
-@objc public class IBANtools {
+@objc public class IBANtools: NSObject {
+
+  static var institutesInfo: [String: InstituteInfo] = [:];
+
+  override public class func initialize() {
+    super.initialize();
+
+    let bundle = NSBundle(forClass: IBANtools.self);
+    let resourcePath = bundle.pathForResource("eu_all_mfi", ofType: "txt", inDirectory: "");
+    if resourcePath != nil && NSFileManager.defaultManager().fileExistsAtPath(resourcePath!) {
+      var error: NSError?;
+      let content = NSString(contentsOfFile: resourcePath!, encoding: NSUTF8StringEncoding, error: &error);
+      if error != nil {
+        let alert = NSAlert.init(error: error!);
+        alert.runModal();
+        return;
+      }
+
+      if content != nil {
+        // Extract institute details.
+        for line in content!.componentsSeparatedByCharactersInSet(NSCharacterSet.newlineCharacterSet()) {
+          let s: NSString = line as! NSString;
+          let entry = s.componentsSeparatedByString("\t") as! [String];
+          if entry.count == 0 {
+            continue;
+          }
+          if entry[0] == "MFI_ID" {
+            continue; // Header line.
+          }
+          let info = InstituteInfo(
+            mfiID: entry[0],
+            bic: entry[1],
+            countryCode: entry[2],
+            name: entry[3],
+            box: entry[4],
+            address: entry[5],
+            postal: entry[6],
+            city: entry[7],
+            category: entry[8],
+            domicile: entry[9],
+            headName: entry[11],
+            reserve: entry[12] == "Yes",
+            exempt:entry[13] == "Yes"
+          );
+
+          let key = count(entry[1]) > 0 ? entry[1] : entry[0];
+          institutesInfo[key] = info; // Info keyed by BIC or (if the bic is empty) by MFI ID.
+        }
+      }
+    }
+  }
+
+  /// Obj-c wrapper for same named Swift-only function.
+  public class func instituteDetailsForBIC(bic: NSString) -> Dictionary<NSString, AnyObject> {
+    var result: [NSString: AnyObject] = [:];
+    if let info = instituteDetailsForBIC(bic as String) {
+      result["MFIID"] = info.mfiID;
+      result["BIC"] = info.bic;
+      result["COUNTRY"] = info.countryCode;
+      result["NAME"] = info.name;
+      result["BOX"] = info.box;
+      result["ADDRESS"] = info.address;
+      result["POSTAL"] = info.postal;
+      result["CITY"] = info.city;
+      result["CATEGORY"] = info.category;
+      result["DOMICILE"] = info.domicile;
+      result["HEAD"] = info.headName;
+      result["RESERVE"] = NSNumber(bool: info.reserve);
+      result["EXEMPT"] = info.exempt;
+    }
+    return result;
+  }
+
+  /// Returns address, name and other info about an institute in Europe.
+  /// Some of the financial institues in our list have no bic and the MFI ID is used as key.
+  // So it can happen we cannot return
+  public class func instituteDetailsForBIC(var bic: String) -> InstituteInfo? {
+    var result = institutesInfo[bic];
+    if result == nil && !(bic as NSString).hasSuffix("XXX") {
+      // If we cannot find anything for the given bic and it is not already in the generic form
+      // (XXX at the end for no specific subsidary) try another lookup using the generic form.
+      bic = (bic as NSString).substringToIndex(count(bic) - 3) + "XXX";
+      result = institutesInfo[bic];
+    }
+    return result;
+  }
 
   /// Validates the given IBAN. Returns true if the number is valid, otherwise false.
   public class func isValidIBAN(iban: String) -> Bool {
     return computeChecksum(iban) == 97;
   }
 
-  /// Wrapper function for isvalidAccount function to be usable by Obj-C.
+  /// Wrapper function for isValidAccount function to be usable by Obj-C.
   /// Entries used in the result dictionaries:
   ///   "valid" (Bool in an NSNumber)
   ///   "result" (IBANToolsResult in an NSNumber)
@@ -218,6 +321,7 @@ typealias ConversionResult = (iban: String, result: IBANToolsResult);
     var mutableBankCode = bankCode;
     let results = convertToIBAN(&mutableAccount, bankCode: &mutableBankCode, countryCode: countryCode,
       validateAccount: validateAccount);
+
     var result: Dictionary<String, AnyObject> = [
       "iban": results.iban,
       "account": mutableAccount,

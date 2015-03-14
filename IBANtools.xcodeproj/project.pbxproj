@@ -14,6 +14,7 @@
 		27A840BB1A33442700B78076 /* IBANtools.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 27A840AF1A33442700B78076 /* IBANtools.framework */; };
 		27A840C21A33442700B78076 /* IBANtoolsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27A840C11A33442700B78076 /* IBANtoolsTests.swift */; };
 		27A840CC1A33443F00B78076 /* Converter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27A840CB1A33443F00B78076 /* Converter.swift */; };
+		27B094B91AB4634300FA3D6D /* eu_all_mfi.txt in Resources */ = {isa = PBXBuildFile; fileRef = 27B094B81AB4634300FA3D6D /* eu_all_mfi.txt */; };
 		27BB86871A3DCCA4005317B2 /* IBANtoolsDETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27BB86861A3DCCA4005317B2 /* IBANtoolsDETests.swift */; };
 /* End PBXBuildFile section */
 
@@ -38,6 +39,7 @@
 		27A840C01A33442700B78076 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = Tests/Info.plist; sourceTree = SOURCE_ROOT; };
 		27A840C11A33442700B78076 /* IBANtoolsTests.swift */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.swift; name = IBANtoolsTests.swift; path = Tests/IBANtoolsTests.swift; sourceTree = SOURCE_ROOT; tabWidth = 2; wrapsLines = 0; };
 		27A840CB1A33443F00B78076 /* Converter.swift */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.swift; name = Converter.swift; path = Source/Converter.swift; sourceTree = SOURCE_ROOT; tabWidth = 2; wrapsLines = 0; };
+		27B094B81AB4634300FA3D6D /* eu_all_mfi.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = eu_all_mfi.txt; path = Resources/eu_all_mfi.txt; sourceTree = "<group>"; };
 		27BB86861A3DCCA4005317B2 /* IBANtoolsDETests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = IBANtoolsDETests.swift; path = Tests/IBANtoolsDETests.swift; sourceTree = SOURCE_ROOT; wrapsLines = 0; };
 /* End PBXFileReference section */
 
@@ -63,6 +65,7 @@
 		278980661A4094C200C2495F /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				27B094B81AB4634300FA3D6D /* eu_all_mfi.txt */,
 				278980671A4094F300C2495F /* de */,
 			);
 			name = Resources;
@@ -217,6 +220,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				278980681A4094F300C2495F /* de in Resources */,
+				27B094B91AB4634300FA3D6D /* eu_all_mfi.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

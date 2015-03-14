@@ -120,7 +120,7 @@ class IBANtoolsDETests: XCTestCase {
     XCTAssert(testAndCompare("4820379900", "26580070", "de", ("DE37265800704820379900", "DRESDEFF265", .DefaultIBAN, .OK), true), "5.4"); // Standard.
     XCTAssert(testAndCompare("1814706100", "50080000", "de", ("", "", .BadAccount, .OK), true), "5.5"); // Invalid account type.
     XCTAssert(testAndCompare("2814706100", "50080000", "de", ("", "", .BadAccount, .OK), true), "5.6"); // Invalid account type.
-    XCTAssert(testAndCompare( "3814706100", "50080000","de", ("", "", .BadAccount, .OK), true), "5.7"); // Invalid account type.
+    XCTAssert(testAndCompare("3814706100", "50080000", "de", ("", "", .BadAccount, .OK), true), "5.7"); // Invalid account type.
     XCTAssert(testAndCompare("4814706100", "50080000", "de", ("DE70500800004814706100", "DRESDEFFXXX", .DefaultIBAN, .OK), true), "5.8"); // Standard.
     XCTAssert(testAndCompare("5814706100", "50080000", "de", ("", "", .BadAccount, .OK), true), "5.9"); // Invalid account type.
     XCTAssert(testAndCompare("6814706100", "50080000", "de", ("DE77500800006814706100", "DRESDEFFXXX", .DefaultIBAN, .OK), true), "5.10"); // Standard.

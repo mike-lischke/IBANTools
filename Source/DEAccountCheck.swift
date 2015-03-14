@@ -2153,7 +2153,7 @@ internal class DEAccountCheck : AccountCheck {
 
   /// In cases where we get a bank code which is no longer valid (and hence no longer in the official
   /// database) we may be able to get the new bank code from our internal mappings. This works howver
-  /// only if we have an account clusters for the given old bank code. We can then see if there's at
+  /// only if we have an account cluster for the given old bank code. We can then see if there's at
   /// least one cluster for the same IBAN rule (so we ensure account and bank code belong together).
   class func bankCodeFromAccountCluster(account: Int, bankCode: Int) -> Int {
     if let mappingTuple = mappings[bankCode] {
