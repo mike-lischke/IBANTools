@@ -81,7 +81,10 @@ typealias ConversionResult = (iban: String, result: IBANToolsResult);
 
 /// Base classes for country specific rules.
 /// Note: @objc and the NSObject base class are necessary to make dynamic instantiation + initialize override working.
-@objc class IBANRules : NSObject {
+class IBANRules : NSObject {
+  class func loadData(path: String?) {
+  }
+
   class func validWithoutChecksum(account: String, _ bankCode: String) -> Bool {
     return false;
   }
@@ -95,14 +98,17 @@ typealias ConversionResult = (iban: String, result: IBANToolsResult);
   }
 }
 
-@objc class AccountCheck : NSObject {
+class AccountCheck : NSObject {
+  class func loadData(path: String?) {
+  }
+
   class func isValidAccount(inout account: String, inout _ bankCode: String, _ forIBAN: Bool) ->
     (valid: Bool, result: IBANToolsResult) {
     return (false, .NoMethod);
   }
 }
 
-@objc public class IBANtools: NSObject {
+public class IBANtools: NSObject {
 
   static var institutesInfo: [String: InstituteInfo] = [:];
 
@@ -111,9 +117,13 @@ typealias ConversionResult = (iban: String, result: IBANToolsResult);
 
     let bundle = NSBundle(forClass: IBANtools.self);
     let resourcePath = bundle.pathForResource("eu_all_mfi", ofType: "txt", inDirectory: "");
-    if resourcePath != nil && NSFileManager.defaultManager().fileExistsAtPath(resourcePath!) {
+    loadData(resourcePath);
+  }
+
+  private class func loadData(path: String?) {
+    if path != nil && NSFileManager.defaultManager().fileExistsAtPath(path!) {
       var error: NSError?;
-      let content = NSString(contentsOfFile: resourcePath!, encoding: NSUTF8StringEncoding, error: &error);
+      let content = NSString(contentsOfFile: path!, encoding: NSUTF8StringEncoding, error: &error);
       if error != nil {
         let alert = NSAlert.init(error: error!);
         alert.runModal();
@@ -121,6 +131,8 @@ typealias ConversionResult = (iban: String, result: IBANToolsResult);
       }
 
       if content != nil {
+        institutesInfo = [:];
+
         // Extract institute details.
         for line in content!.componentsSeparatedByCharactersInSet(NSCharacterSet.newlineCharacterSet()) {
           let s: NSString = line as! NSString;
@@ -131,7 +143,7 @@ typealias ConversionResult = (iban: String, result: IBANToolsResult);
           if entry[0] == "MFI_ID" {
             continue; // Header line.
           }
-          
+
           let info = InstituteInfo(
             mfiID: entry[0],
             bic: entry[1],
@@ -236,7 +248,8 @@ typealias ConversionResult = (iban: String, result: IBANToolsResult);
     countryCode = countryCode.uppercaseString;
 
     if let details = countryData[countryCode] {
-      let clazz: AnyClass! = NSClassFromString(countryCode + "AccountCheck");
+      let bundle = NSBundle(forClass: IBANtools.self);
+      let clazz: AnyClass! = bundle.classNamed(countryCode + "AccountCheck"); //NSClassFromString(countryCode + "AccountCheck");
       if clazz != nil {
         let rulesClass = clazz as! AccountCheck.Type;
         return rulesClass.isValidAccount(&account, &bankCode, forIBAN);

@@ -278,9 +278,9 @@ internal class DEAccountCheck : AccountCheck {
   static private var mappings: [Int: (rule: Int, details: [MappingDetails])] = [:];
 
   static private let accounts13091054: [Int] = [
-    1718190, 22000225, 49902271, 49902280, 101680029,
-    104200028, 106200025, 108000171, 108000279, 108001364,
-    108001801, 108002514, 300008542, 9130099995, 9130500002,
+       1718190,   22000225,   49902271,   49902280,  101680029,
+     104200028,  106200025,  108000171,  108000279,  108001364,
+     108001801,  108002514,  300008542, 9130099995, 9130500002,
     9131100008, 9131600000, 9131610006, 9132200006, 9132400005,
     9132600004, 9132700017, 9132700025, 9132700033, 9132700041,
     9133200700, 9133200735, 9133200743, 9133200751, 9133200786,
@@ -308,9 +308,13 @@ internal class DEAccountCheck : AccountCheck {
 
     let bundle = NSBundle(forClass: DEAccountCheck.self);
     let resourcePath = bundle.pathForResource("mappings", ofType: "txt", inDirectory: "de");
-    if resourcePath != nil && NSFileManager.defaultManager().fileExistsAtPath(resourcePath!) {
+    loadData(resourcePath);
+  }
+
+  override class func loadData(path: String?) {
+    if path != nil && NSFileManager.defaultManager().fileExistsAtPath(path!) {
       var error: NSError?;
-      let content = NSString(contentsOfFile: resourcePath!, encoding: NSUTF8StringEncoding, error: &error);
+      let content = NSString(contentsOfFile: path!, encoding: NSUTF8StringEncoding, error: &error);
       if error != nil {
         let alert = NSAlert.init(error: error!);
         alert.runModal();
@@ -318,6 +322,8 @@ internal class DEAccountCheck : AccountCheck {
       }
 
       if content != nil {
+        mappings = [:];
+
         var sourceBankCode: NSString = "";
         var rule = 0;
         var entry: MappingDetails = (0, 0, 0, 0);
@@ -454,7 +460,7 @@ internal class DEAccountCheck : AccountCheck {
     }
   }
 
-  class func intFromRange(range: Slice<UInt16>) -> Int {
+  private class func intFromRange(range: Slice<UInt16>) -> Int {
     var result: Int = 0;
     for digit in range {
       result = result * 10 + Int(digit);

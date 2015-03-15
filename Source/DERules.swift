@@ -117,9 +117,13 @@ internal class DERules : IBANRules {
 
     let bundle = NSBundle(forClass: DERules.self);
     let resourcePath = bundle.pathForResource("bank_codes", ofType: "txt", inDirectory: "de");
-    if resourcePath != nil && NSFileManager.defaultManager().fileExistsAtPath(resourcePath!) {
+    loadData(resourcePath);
+  }
+
+  override class func loadData(path: String?) {
+    if path != nil && NSFileManager.defaultManager().fileExistsAtPath(path!) {
       var error: NSError?;
-      let content = NSString(contentsOfFile: resourcePath!, encoding: NSUTF8StringEncoding, error: &error);
+      let content = NSString(contentsOfFile: path!, encoding: NSUTF8StringEncoding, error: &error);
       if error != nil {
         let alert = NSAlert.init(error: error!);
         alert.runModal();
@@ -127,6 +131,8 @@ internal class DERules : IBANRules {
       }
 
       if content != nil {
+        institutes = [:];
+        
         // Extract bank code details.
         for line in content!.componentsSeparatedByCharactersInSet(NSCharacterSet.newlineCharacterSet()) {
           let s: NSString = line as! NSString;
