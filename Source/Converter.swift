@@ -62,7 +62,7 @@ import AppKit
 
 /// Institute info for use in Swift. For obj-c we use a dict with keys as written in the comments.
 public struct InstituteInfo {
-  public let mfiID: String;       // Obj-c dict key: MFIID
+  public let mfiID: String;       // MFIID
   public let bic: String;         // BIC
   public let countryCode: String; // COUNTRY
   public let name: String;        // NAME
@@ -80,7 +80,7 @@ public struct InstituteInfo {
 typealias ConversionResult = (iban: String, result: IBANToolsResult);
 
 /// Base classes for country specific rules.
-/// Note: @objc and the NSObject base class are necessary to make dynamic instantiation working.
+/// Note: @objc and the NSObject base class are necessary to make dynamic instantiation + initialize override working.
 @objc class IBANRules : NSObject {
   class func validWithoutChecksum(account: String, _ bankCode: String) -> Bool {
     return false;
@@ -131,6 +131,7 @@ typealias ConversionResult = (iban: String, result: IBANToolsResult);
           if entry[0] == "MFI_ID" {
             continue; // Header line.
           }
+          
           let info = InstituteInfo(
             mfiID: entry[0],
             bic: entry[1],
