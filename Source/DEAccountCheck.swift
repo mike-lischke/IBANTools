@@ -312,9 +312,18 @@ internal class DEAccountCheck : AccountCheck {
   }
 
   override class func loadData(path: String?) {
-    if path != nil && NSFileManager.defaultManager().fileExistsAtPath(path!) {
+    if path == nil || count(path!) < 13 {
+      return;
+    }
+
+    var filePath = path!;
+    if !filePath.hasSuffix("mappings.txt") {
+      filePath += "mappings.txt";
+    }
+    
+    if NSFileManager.defaultManager().fileExistsAtPath(filePath) {
       var error: NSError?;
-      let content = NSString(contentsOfFile: path!, encoding: NSUTF8StringEncoding, error: &error);
+      let content = NSString(contentsOfFile: filePath, encoding: NSUTF8StringEncoding, error: &error);
       if error != nil {
         let alert = NSAlert.init(error: error!);
         alert.runModal();

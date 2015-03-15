@@ -121,9 +121,18 @@ internal class DERules : IBANRules {
   }
 
   override class func loadData(path: String?) {
-    if path != nil && NSFileManager.defaultManager().fileExistsAtPath(path!) {
+    if path == nil || count(path!) < 14 {
+      return;
+    }
+
+    var filePath = path!;
+    if !filePath.hasSuffix("bank_codes.txt") {
+      filePath += "bank_codes.txt";
+    }
+
+    if NSFileManager.defaultManager().fileExistsAtPath(filePath) {
       var error: NSError?;
-      let content = NSString(contentsOfFile: path!, encoding: NSUTF8StringEncoding, error: &error);
+      let content = NSString(contentsOfFile: filePath, encoding: NSUTF8StringEncoding, error: &error);
       if error != nil {
         let alert = NSAlert.init(error: error!);
         alert.runModal();

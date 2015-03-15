@@ -111,6 +111,7 @@ class AccountCheck : NSObject {
 public class IBANtools: NSObject {
 
   static var institutesInfo: [String: InstituteInfo] = [:];
+  static var usedPath: String?;
 
   override public class func initialize() {
     super.initialize();
@@ -121,9 +122,18 @@ public class IBANtools: NSObject {
   }
 
   private class func loadData(path: String?) {
-    if path != nil && NSFileManager.defaultManager().fileExistsAtPath(path!) {
+    if path == nil || count(path!) < 14 {
+      return;
+    }
+
+    var filePath = path!;
+    if !filePath.hasSuffix("eu_all_mfi.txt") {
+      filePath += "eu_all_mfi.txt";
+    }
+
+    if NSFileManager.defaultManager().fileExistsAtPath(filePath) {
       var error: NSError?;
-      let content = NSString(contentsOfFile: path!, encoding: NSUTF8StringEncoding, error: &error);
+      let content = NSString(contentsOfFile: filePath, encoding: NSUTF8StringEncoding, error: &error);
       if error != nil {
         let alert = NSAlert.init(error: error!);
         alert.runModal();
@@ -131,6 +141,7 @@ public class IBANtools: NSObject {
       }
 
       if content != nil {
+        usedPath = filePath;
         institutesInfo = [:];
 
         // Extract institute details.
@@ -160,8 +171,35 @@ public class IBANtools: NSObject {
             exempt:entry[13] == "Yes"
           );
 
-          let key = count(entry[1]) > 0 ? entry[1] : entry[0];
-          institutesInfo[key] = info; // Info keyed by BIC or (if the bic is empty) by MFI ID.
+          // Many entries in the file have no BIC and a few use the same BIC. In both cases
+          // we use the MFI ID instead (which is unique). We may later find a way to get the MFI ID
+          // from a BIC.
+          var key = count(entry[1]) > 0 ? entry[1] : entry[0];
+          if institutesInfo[key] != nil {
+            key = entry[0];
+          }
+          institutesInfo[key] = info; // Info keyed by BIC or (if the bic is empty/duplicate) by MFI ID.
+        }
+      }
+    }
+  }
+
+  public class func useResourcePath(path: String) {
+    if usedPath != nil && usedPath! != path {
+      loadData(path);
+
+      let bundle = NSBundle(forClass: IBANtools.self);
+      for entry in countryData.keys {
+        var clazz: AnyClass! = bundle.classNamed(entry + "AccountCheck");
+        if clazz != nil {
+          let rulesClass = clazz as! AccountCheck.Type;
+          return rulesClass.loadData(path);
+        }
+
+        clazz = bundle.classNamed(entry + "Rules");
+        if clazz != nil {
+          let rulesClass = clazz as! IBANRules.Type;
+          return rulesClass.loadData(path);
         }
       }
     }
@@ -249,7 +287,7 @@ public class IBANtools: NSObject {
 
     if let details = countryData[countryCode] {
       let bundle = NSBundle(forClass: IBANtools.self);
-      let clazz: AnyClass! = bundle.classNamed(countryCode + "AccountCheck"); //NSClassFromString(countryCode + "AccountCheck");
+      let clazz: AnyClass! = bundle.classNamed(countryCode + "AccountCheck");
       if clazz != nil {
         let rulesClass = clazz as! AccountCheck.Type;
         return rulesClass.isValidAccount(&account, &bankCode, forIBAN);
@@ -288,7 +326,8 @@ public class IBANtools: NSObject {
     countryCode = countryCode.uppercaseString;
 
     if let details = countryData[countryCode] {
-      let clazz: AnyClass! = NSClassFromString(countryCode + "Rules");
+      let bundle = NSBundle(forClass: IBANtools.self);
+      let clazz: AnyClass! = bundle.classNamed(countryCode + "Rules");
       if clazz != nil {
         let rulesClass = clazz as! IBANRules.Type;
         return rulesClass.bicForBankCode(bankCode);
@@ -374,7 +413,8 @@ public class IBANtools: NSObject {
       // If we have country information call the country converter and then ensure
       // bank code and account number have the desired length.
       if let details = countryData[countryCode] {
-        let clazz: AnyClass! = NSClassFromString(countryCode + "Rules");
+        let bundle = NSBundle(forClass: IBANtools.self);
+        let clazz: AnyClass! = bundle.classNamed(countryCode + "Rules");
 
         // Some accounts can be used for IBANs even though they do not validate.
         var ignoreChecksum = false;
