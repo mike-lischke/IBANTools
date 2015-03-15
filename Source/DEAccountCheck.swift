@@ -307,23 +307,15 @@ internal class DEAccountCheck : AccountCheck {
     super.initialize();
 
     let bundle = NSBundle(forClass: DEAccountCheck.self);
-    let resourcePath = bundle.pathForResource("mappings", ofType: "txt", inDirectory: "de");
-    loadData(resourcePath);
+    if let resourcePath = bundle.pathForResource("mappings", ofType: "txt", inDirectory: "de") {
+      loadData((resourcePath as NSString).stringByDeletingLastPathComponent);
+    }
   }
 
-  override class func loadData(path: String?) {
-    if path == nil || count(path!) < 13 {
-      return;
-    }
-
-    var filePath = path!;
-    if !filePath.hasSuffix("mappings.txt") {
-      filePath += "mappings.txt";
-    }
-    
-    if NSFileManager.defaultManager().fileExistsAtPath(filePath) {
+  override class func loadData(path: String) {
+    if NSFileManager.defaultManager().fileExistsAtPath(path + "/mappings.txt") {
       var error: NSError?;
-      let content = NSString(contentsOfFile: filePath, encoding: NSUTF8StringEncoding, error: &error);
+      let content = NSString(contentsOfFile: path + "/mappings.txt", encoding: NSUTF8StringEncoding, error: &error);
       if error != nil {
         let alert = NSAlert.init(error: error!);
         alert.runModal();

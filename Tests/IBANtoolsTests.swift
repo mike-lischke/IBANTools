@@ -483,15 +483,26 @@ class IBANtoolsTests: XCTestCase {
       if !expected.isAvailable {
         return false;
       }
-
       return info.countryCode == expected.country && info.name == expected.name && info.address == expected.address;
     }
+    return !expected.isAvailable;
+  }
 
+  func bankInfoTest2(bic: String, _ expected: (isAvailable: Bool, hbciVersion: String, pinTanVersion: String, url: String)) -> Bool {
+    if let info = IBANtools.instituteDetailsForBIC(bic) {
+      if !expected.isAvailable {
+        return false;
+      }
+      return info.hbciVersion == expected.hbciVersion && info.pinTanVersion == expected.pinTanVersion && info.pinTanURL == expected.url;
+    }
     return !expected.isAvailable;
   }
 
   func testBankInfo() {
     XCTAssert(bankInfoTest("CKCNIE21", (true, "IE", "St. Canice's Kilkenny Credit Union Limited", "78 High Street, Kilkenny,")));
     XCTAssert(bankInfoTest("BCDMITM1XXX", (true, "IT", "BANQUE CHAABI DU MAROC", "VIALE SAURO NAZARIO, 14")));
+
+    XCTAssert(bankInfoTest2("HYVEDEMM466", (true, "300", "300", "https://hbci-01.hypovereinsbank.de/bank/hbci")));
+    XCTAssert(bankInfoTest2("WELADED1EMR", (true, "220", "plus", "https://hbci-pintan-rl.s-hbci.de/PinTanServlet")));
   }
 }

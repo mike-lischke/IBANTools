@@ -62,19 +62,24 @@ import AppKit
 
 /// Institute info for use in Swift. For obj-c we use a dict with keys as written in the comments.
 public struct InstituteInfo {
-  public let mfiID: String;       // MFIID
-  public let bic: String;         // BIC
-  public let countryCode: String; // COUNTRY
-  public let name: String;        // NAME
-  public let box: String;         // BOX
-  public let address: String;     // ADDRESS
-  public let postal: String;      // POSTAL
-  public let city: String;        // CITY
-  public let category: String;    // CATEGORY
-  public let domicile: String;    // DOMICILE
-  public let headName: String;    // HEAD
-  public let reserve: Bool;       // RESERVE
-  public let exempt: Bool;        // EXEMPT
+  public let mfiID: String;         // MFIID
+  public let bic: String;           // BIC
+  public let countryCode: String;   // COUNTRY
+  public let name: String;          // NAME
+  public let box: String;           // BOX
+  public let address: String;       // ADDRESS
+  public let postal: String;        // POSTAL
+  public let city: String;          // CITY
+  public let category: String;      // CATEGORY
+  public let domicile: String;      // DOMICILE
+  public let headName: String;      // HEAD
+  public let reserve: Bool;         // RESERVE
+  public let exempt: Bool;          // EXEMPT
+
+  public let hbciVersion: String;   // HBCI-VERSION (for DDV + RDH)
+  public let pinTanVersion: String; // PINTAN-VERSION (for HBCI Pin/Tan + RDH)
+  public let hostURL: String;       // HOST (host URL for DDV + RDH).
+  public let pinTanURL: String;     // URL
 }
 
 typealias ConversionResult = (iban: String, result: IBANToolsResult);
@@ -82,7 +87,11 @@ typealias ConversionResult = (iban: String, result: IBANToolsResult);
 /// Base classes for country specific rules.
 /// Note: @objc and the NSObject base class are necessary to make dynamic instantiation + initialize override working.
 internal class IBANRules : NSObject {
-  class func loadData(path: String?) {
+  class func loadData(path: String) {
+  }
+
+  class func onlineDetailsForBIC(bic: String) -> (hbciVersion: String, pinTanVersion: String, hostURL: String, pinTanURL: String) {
+    return ("", "", "", "");
   }
 
   class func validWithoutChecksum(account: String, _ bankCode: String) -> Bool {
@@ -99,7 +108,7 @@ internal class IBANRules : NSObject {
 }
 
 internal class AccountCheck : NSObject {
-  class func loadData(path: String?) {
+  class func loadData(path: String) {
   }
 
   class func isValidAccount(inout account: String, inout _ bankCode: String, _ forIBAN: Bool) ->
@@ -117,23 +126,15 @@ public class IBANtools: NSObject {
     super.initialize();
 
     let bundle = NSBundle(forClass: IBANtools.self);
-    let resourcePath = bundle.pathForResource("eu_all_mfi", ofType: "txt", inDirectory: "");
-    loadData(resourcePath);
+    if let resourcePath = bundle.pathForResource("eu_all_mfi", ofType: "txt", inDirectory: "") {
+      loadData((resourcePath as NSString).stringByDeletingLastPathComponent);
+    }
   }
 
-  private class func loadData(path: String?) {
-    if path == nil || count(path!) < 14 {
-      return;
-    }
-
-    var filePath = path!;
-    if !filePath.hasSuffix("eu_all_mfi.txt") {
-      filePath += "eu_all_mfi.txt";
-    }
-
-    if NSFileManager.defaultManager().fileExistsAtPath(filePath) {
+  private class func loadData(path: String) {
+    if NSFileManager.defaultManager().fileExistsAtPath(path + "/eu_all_mfi.txt") {
       var error: NSError?;
-      let content = NSString(contentsOfFile: filePath, encoding: NSUTF8StringEncoding, error: &error);
+      let content = NSString(contentsOfFile: path + "/eu_all_mfi.txt", encoding: NSUTF8StringEncoding, error: &error);
       if error != nil {
         let alert = NSAlert.init(error: error!);
         alert.runModal();
@@ -141,7 +142,9 @@ public class IBANtools: NSObject {
       }
 
       if content != nil {
-        usedPath = filePath;
+        let bundle = NSBundle(forClass: IBANtools.self);
+
+        usedPath = path + "/eu_all_mfi.txt";
         institutesInfo = [:];
 
         // Extract institute details.
@@ -153,6 +156,17 @@ public class IBANtools: NSObject {
           }
           if entry[0] == "MFI_ID" {
             continue; // Header line.
+          }
+
+          // The ECB MFI file doesn't contain PIN/TAN URLs or HBCI/FinTS version numbers used
+          // by a specific bank, so we ask the country specific classes for that info.
+          var hbciVersion = "";
+          var pinTanVersion = "";
+          var hostURL = "";
+          var pinTanURL = "";
+          if let clazz: AnyClass = bundle.classNamed(entry[2] + "Rules") where count(entry[1]) > 0 {
+            let rulesClass = clazz as! IBANRules.Type;
+            (hbciVersion, pinTanVersion, hostURL, pinTanURL) = rulesClass.onlineDetailsForBIC(entry[1]);
           }
 
           let info = InstituteInfo(
@@ -168,7 +182,12 @@ public class IBANtools: NSObject {
             domicile: entry[9],
             headName: entry[11],
             reserve: entry[12] == "Yes",
-            exempt:entry[13] == "Yes"
+            exempt: entry[13] == "Yes",
+
+            hbciVersion: hbciVersion,
+            pinTanVersion: pinTanVersion,
+            hostURL: hostURL,
+            pinTanURL: pinTanURL
           );
 
           // Many entries in the file have no BIC and a few use the same BIC. In both cases
@@ -186,8 +205,8 @@ public class IBANtools: NSObject {
 
   public class func useResourcePath(path: String) {
     if usedPath != nil && usedPath! != path {
-      loadData(path);
 
+      // First let support classes load their data. We may need that for our initialization.
       let bundle = NSBundle(forClass: IBANtools.self);
       for entry in countryData.keys {
         var clazz: AnyClass! = bundle.classNamed(entry + "AccountCheck");
@@ -202,6 +221,9 @@ public class IBANtools: NSObject {
           return rulesClass.loadData(path);
         }
       }
+
+      // Now we can load our own data.
+      loadData(path);
     }
   }
 
@@ -222,6 +244,11 @@ public class IBANtools: NSObject {
       result["HEAD"] = info.headName;
       result["RESERVE"] = NSNumber(bool: info.reserve);
       result["EXEMPT"] = info.exempt;
+      result["HBCI-VERSION"] = info.hbciVersion;
+      result["PINTAN-VERSION"] = info.pinTanVersion;
+      result["HOST"] = info.hostURL;
+      result["URL"] = info.pinTanURL;
+
     }
     return result;
   }
@@ -231,7 +258,7 @@ public class IBANtools: NSObject {
   // So it can happen we cannot return
   public class func instituteDetailsForBIC(var bic: String) -> InstituteInfo? {
     var result = institutesInfo[bic];
-    if result == nil && !(bic as NSString).hasSuffix("XXX") {
+    if result == nil && !bic.hasSuffix("XXX") {
       // If we cannot find anything for the given bic and it is not already in the generic form
       // (XXX at the end for no specific subsidary) try another lookup using the generic form.
       bic = (bic as NSString).substringToIndex(count(bic) - 3) + "XXX";

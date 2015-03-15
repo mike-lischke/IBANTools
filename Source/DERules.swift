@@ -36,12 +36,19 @@ internal class DERules : IBANRules {
     var replacement: Int = 0;        // Set if there's a new bank code now.
     var rule: Int = 0;               // The IBAN conversion rule for this bank.
     var ruleVersion: Int = 0;        // The version of the rule (starting with 0).
+
+    // Additional info not found in the official bank codes file.
+    var hbciVersion: String = "";
+    var pinTanVersion: String = "";
+    var hostURL: String = "";
+    var pinTanURL: String = "";
   }
 
   typealias RuleResult = (account: String, bankCode: String, iban: String, result: IBANToolsResult);
   typealias RuleClosure = (String, String, Int) -> RuleResult;
 
   static private var institutes: [Int: BankEntry] = [:];
+  static private var bicToBankCode: [String: Int] = [:]; // Reverse lookup.
 
   // An array of rules. The signature is a bit complicated because some rules only modify
   // the account number or the bank code, but otherwise use the default IBAN creation rule.
@@ -116,23 +123,41 @@ internal class DERules : IBANRules {
     super.initialize();
 
     let bundle = NSBundle(forClass: DERules.self);
-    let resourcePath = bundle.pathForResource("bank_codes", ofType: "txt", inDirectory: "de");
-    loadData(resourcePath);
+    if let resourcePath = bundle.pathForResource("bank_codes", ofType: "txt", inDirectory: "de") {
+      loadData((resourcePath as NSString).stringByDeletingLastPathComponent);
+    }
   }
 
-  override class func loadData(path: String?) {
-    if path == nil || count(path!) < 14 {
-      return;
-    }
+  override class func loadData(path: String) {
+    // Neither the ECB MFI file nor the Deutsche Bank bank code file contain version + URL info
+    // for banks, so we use the hbci4java blz.properties file for now which has that info,
+    // at least for most german banks.
+    var properties: [Int: [String]] = [:]; // bank code + details.
 
-    var filePath = path!;
-    if !filePath.hasSuffix("bank_codes.txt") {
-      filePath += "bank_codes.txt";
-    }
-
-    if NSFileManager.defaultManager().fileExistsAtPath(filePath) {
+    if NSFileManager.defaultManager().fileExistsAtPath(path + "/blz.properties") {
       var error: NSError?;
-      let content = NSString(contentsOfFile: filePath, encoding: NSUTF8StringEncoding, error: &error);
+      if let content = NSString(contentsOfFile: path + "/blz.properties", encoding: NSUTF8StringEncoding, error: &error) {
+        if error != nil {
+          let alert = NSAlert.init(error: error!);
+          alert.runModal();
+          return;
+        }
+
+        // The file is organized like many properties/config files: key = value.
+        // Values are individual fields concatenated using the pipe symbol.
+        for line in content.componentsSeparatedByCharactersInSet(NSCharacterSet.newlineCharacterSet()) {
+          let s: NSString = line as! NSString;
+          let property = s.componentsSeparatedByString("=") as! [String];
+          if count(property) > 1 {
+            properties[property[0].toInt()!] = property[1].componentsSeparatedByString("|");
+          }
+        }
+      }
+    }
+
+    if NSFileManager.defaultManager().fileExistsAtPath(path + "/bank_codes.txt") {
+      var error: NSError?;
+      let content = NSString(contentsOfFile: path + "/bank_codes.txt", encoding: NSUTF8StringEncoding, error: &error);
       if error != nil {
         let alert = NSAlert.init(error: error!);
         alert.runModal();
@@ -141,6 +166,7 @@ internal class DERules : IBANRules {
 
       if content != nil {
         institutes = [:];
+        bicToBankCode = [:];
         
         // Extract bank code details.
         for line in content!.componentsSeparatedByCharactersInSet(NSCharacterSet.newlineCharacterSet()) {
@@ -158,7 +184,7 @@ internal class DERules : IBANRules {
 
           var entry = BankEntry();
 
-          let bankCode = line.substringWithRange(NSMakeRange(0, 8)).toInt();
+          let bankCode = line.substringWithRange(NSMakeRange(0, 8)).toInt()!;
           entry.name = line.substringWithRange(NSMakeRange(9, 58)).stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceCharacterSet());
           entry.postalCode = line.substringWithRange(NSMakeRange(67, 5));
           entry.place = line.substringWithRange(NSMakeRange(72, 35)).stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceCharacterSet());
@@ -173,10 +199,45 @@ internal class DERules : IBANRules {
             entry.rule = line.substringWithRange(NSMakeRange(168, 4)).toInt()!;
             entry.ruleVersion = line.substringWithRange(NSMakeRange(172, 2)).toInt()!;
           }
-          institutes[bankCode!] = entry;
+
+          if let onlineDetails = properties[bankCode] {
+            switch count(onlineDetails) {
+            case 8...10:
+              entry.pinTanVersion = onlineDetails[7];
+              fallthrough;
+            case 7:
+              entry.hbciVersion = onlineDetails[6];
+              fallthrough;
+            case 6:
+              entry.pinTanURL = onlineDetails[5];
+              fallthrough;
+            case 5:
+              entry.hostURL = onlineDetails[4];
+            default:
+              break;
+            }
+          }
+          institutes[bankCode] = entry;
+          bicToBankCode[entry.bic] = bankCode;
         }
       }
     }
+  }
+
+  override class func onlineDetailsForBIC(var bic: String) -> (hbciVersion: String, pinTanVersion: String, hostURL: String, pinTanURL: String) {
+    if let bankCode = bicToBankCode[bic], entry = institutes[bankCode] {
+      return (entry.hbciVersion, entry.pinTanVersion, entry.hostURL, entry.pinTanURL);
+    }
+
+    if !bic.hasSuffix("XXX") {
+      // Try the generic form (no subsidary) if we couldn't find an entry.
+      bic = (bic as NSString).substringToIndex(count(bic) - 3) + "XXX";
+      if let bankCode = bicToBankCode[bic], entry = institutes[bankCode] {
+        return (entry.hbciVersion, entry.pinTanVersion, entry.hostURL, entry.pinTanURL);
+      }
+    }
+
+    return ("", "", "", "");
   }
 
   /// Returns the method to be used for account checks for the specific institute.
