@@ -469,7 +469,7 @@ internal class DEAccountCheck : AccountCheck {
     }
   }
 
-  private class func intFromRange(range: Slice<UInt16>) -> Int {
+  private class func intFromRange(range: ArraySlice<UInt16>) -> Int {
     var result: Int = 0;
     for digit in range {
       result = result * 10 + Int(digit);
@@ -513,7 +513,7 @@ internal class DEAccountCheck : AccountCheck {
     var accountAsInt: Int = account.toInt()!; // This must be valid at this point.
 
     var method = startMethod;
-    var workSlice: Slice<UInt16> = [];
+    var workSlice: ArraySlice<UInt16> = [];
     var expectedCheckSum: UInt16 = 100;
     var parameters: MethodParameters = (0, [], (0, 8, 9));
     var number10: [UInt16] = []; // Alway 10 digits long.
@@ -1700,7 +1700,7 @@ internal class DEAccountCheck : AccountCheck {
 
   // MARK: - checksum computation functions.
 
-  private class func patternM10H(digits: Slice<UInt16>, modulus: UInt16) -> UInt16 {
+  private class func patternM10H(digits: ArraySlice<UInt16>, modulus: UInt16) -> UInt16 {
     var weightIndex = 0;
     var sum: UInt16 = 0;
     var lineIndex = 0; // Line (0-3) in the transformation table.
@@ -1714,7 +1714,7 @@ internal class DEAccountCheck : AccountCheck {
     return 10 - sum % 10; // Not the modulus.
   }
 
-  private class func computeSumRemainder(digits: Slice<UInt16>, _ modulus: UInt16, _ weights: [UInt16],
+  private class func computeSumRemainder(digits: ArraySlice<UInt16>, _ modulus: UInt16, _ weights: [UInt16],
     _ backwards: Bool, _ useDigitSum: Bool, _ compute: (UInt16, UInt16) -> UInt16) -> (sum: UInt16, remainder: UInt16) {
       var weightIndex = 0;
       var sum: UInt16 = 0;
@@ -1735,7 +1735,7 @@ internal class DEAccountCheck : AccountCheck {
       return (sum, sum % modulus);
   }
 
-  private class func pattern1(digits: Slice<UInt16>, modulus: UInt16, weights: [UInt16],
+  private class func pattern1(digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16],
     mappings: [ResultMapping] = [.DontMap, .DontMap, .ReturnDifference], backwards: Bool = true,
     useDigitSum: Bool = true) -> UInt16 {
       let (sum, remainder) = computeSumRemainder(digits, modulus, weights, backwards, useDigitSum,
@@ -1779,7 +1779,7 @@ internal class DEAccountCheck : AccountCheck {
       return 0; // Never hit.
   }
 
-  private class func pattern2(digits: Slice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
+  private class func pattern2(digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
     let (sum, remainder) = computeSumRemainder(digits, modulus, weights, backwards, true,
       { return $0 * $1; }
     );
@@ -1794,7 +1794,7 @@ internal class DEAccountCheck : AccountCheck {
     return 99;
   }
 
-  private class func pattern3(digits: Slice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
+  private class func pattern3(digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
     var (sum, remainder) = computeSumRemainder(digits, modulus, weights, backwards, true,
       { return $0 * $1; }
     );
@@ -1810,7 +1810,7 @@ internal class DEAccountCheck : AccountCheck {
     return modulus - sum;
   }
 
-  private class func pattern4(digits: Slice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
+  private class func pattern4(digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
     var (sum, remainder) = computeSumRemainder(digits, modulus, weights, backwards, false,
       { return ($0 * $1) % 10; /* Only use the LSD. */ }
     );
@@ -1821,7 +1821,7 @@ internal class DEAccountCheck : AccountCheck {
     return 10 - remainder;
   }
 
-  private class func pattern5(digits: Slice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
+  private class func pattern5(digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
     var (sum, remainder) = computeSumRemainder(digits, modulus, weights, backwards, true,
       { return ($0 * $1 + $1) % modulus; }
     );
@@ -1924,7 +1924,7 @@ internal class DEAccountCheck : AccountCheck {
     }
 
     if let parameters = methodParameters["68"] {
-      var workSlice: Slice<UInt16>;
+      var workSlice: ArraySlice<UInt16>;
       if number.count == 10 {
         if number[3] != 9 {
           return false;
