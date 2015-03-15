@@ -81,7 +81,7 @@ typealias ConversionResult = (iban: String, result: IBANToolsResult);
 
 /// Base classes for country specific rules.
 /// Note: @objc and the NSObject base class are necessary to make dynamic instantiation + initialize override working.
-class IBANRules : NSObject {
+internal class IBANRules : NSObject {
   class func loadData(path: String?) {
   }
 
@@ -98,7 +98,7 @@ class IBANRules : NSObject {
   }
 }
 
-class AccountCheck : NSObject {
+internal class AccountCheck : NSObject {
   class func loadData(path: String?) {
   }
 
