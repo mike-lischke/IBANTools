@@ -128,28 +128,64 @@ internal class DERules : IBANRules {
     }
   }
 
-  override class func loadData(path: String) {
-    // Neither the ECB MFI file nor the Deutsche Bank bank code file contain version + URL info
-    // for banks, so we use the hbci4java blz.properties file for now which has that info,
-    // at least for most german banks.
-    var properties: [Int: [String]] = [:]; // bank code + details.
+  private class func fillZKADetails(inout entry: BankEntry, details: [String]) -> Void {
+    var version = details[8];
+    if count(version) > 0 {
+      // Convert x.y to xy0 form (e.g. 2.2 to 220).
+      version.removeAtIndex(advance(version.startIndex, 1));
+      entry.hbciVersion = version + "0";
+    }
 
-    if NSFileManager.defaultManager().fileExistsAtPath(path + "/blz.properties") {
+    version = details[21];
+    if count(version) > 0 {
+      // Special format here. So do a simple mapping of the few possible values.
+      if version == "FinTS V3.0" {
+        entry.pinTanVersion = "300";
+      } else {
+        if version.hasPrefix("HBCI 2.2") {
+          entry.pinTanVersion = "220";
+          if version.hasSuffix("1.01") {
+            entry.pinTanVersion = "plus";
+          }
+        } // Otherwise unknown.
+      }
+    }
+
+    entry.hostURL = details[6];
+    entry.pinTanURL = details[20];
+
+    // Usually the ZKA file has preciser bank names, so we use them if available.
+    if count(details[2]) > 0 {
+      entry.name = details[2];
+    }
+  }
+
+  override class func loadData(path: String) {
+    // For german banks we combine 2 files (the bank code file from the Deutsche Bundesbank and
+    // a similar file from the ZKA) to form our database. They are kept separate in order to ease
+    // updating them individually at arbitrary intervals.
+    var zkaData: [Int: [String]] = [:]; // bank code + details.
+
+    if NSFileManager.defaultManager().fileExistsAtPath(path + "/fints_institute.csv") {
       var error: NSError?;
-      if let content = NSString(contentsOfFile: path + "/blz.properties", encoding: NSUTF8StringEncoding, error: &error) {
+      if let content = NSString(contentsOfFile: path + "/fints_institute.csv", encoding: NSUTF8StringEncoding, error: &error) {
         if error != nil {
           let alert = NSAlert.init(error: error!);
           alert.runModal();
           return;
         }
 
-        // The file is organized like many properties/config files: key = value.
-        // Values are individual fields concatenated using the pipe symbol.
+        var firstLineSkipped = false;
         for line in content.componentsSeparatedByCharactersInSet(NSCharacterSet.newlineCharacterSet()) {
-          let s: NSString = line as! NSString;
-          let property = s.componentsSeparatedByString("=") as! [String];
-          if count(property) > 1 {
-            properties[property[0].toInt()!] = property[1].componentsSeparatedByString("|");
+          let s = (line as! NSString).stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceCharacterSet());
+          if count(s) == 0 || !firstLineSkipped {
+            firstLineSkipped = true;
+            continue;
+          }
+
+          let values = s.componentsSeparatedByString(";");
+          if count(values) > 1 && count(values[1]) > 0 {
+            zkaData[values[1].toInt()!] = values;
           }
         }
       }
@@ -200,26 +236,38 @@ internal class DERules : IBANRules {
             entry.ruleVersion = line.substringWithRange(NSMakeRange(172, 2)).toInt()!;
           }
 
-          if let onlineDetails = properties[bankCode] {
-            switch count(onlineDetails) {
-            case 8...10:
-              entry.pinTanVersion = onlineDetails[7];
-              fallthrough;
-            case 7:
-              entry.hbciVersion = onlineDetails[6];
-              fallthrough;
-            case 6:
-              entry.pinTanURL = onlineDetails[5];
-              fallthrough;
-            case 5:
-              entry.hostURL = onlineDetails[4];
-            default:
-              break;
-            }
+          // Look for additional info in the ZKA dataset. If an entry can be found for the given
+          // bank code remove it afterwards, so get a list of entries at the end that are not
+          // in the bank code list.
+          if let zkaDetails = zkaData[bankCode] {
+            fillZKADetails(&entry, details: zkaDetails);
+            zkaData.removeValueForKey(bankCode);
           }
+
           institutes[bankCode] = entry;
           bicToBankCode[entry.bic] = bankCode;
         }
+      }
+
+      // Finally go over the remaining entries in the ZKA data and create institutes entries from them.
+      // These may contain entries for deleted or otherwise invalid banks
+      for (bankCode, zkaDetails) in zkaData {
+        var entry = BankEntry();
+
+        entry.name = zkaDetails[2];
+        entry.postalCode = "";
+        entry.place = zkaDetails[3];
+        entry.bic = "";
+        entry.checksumMethod = ""; // Invalid checksum rule. We have no info about this.
+                                   // Causes our private bank code mapping to kick in.
+        entry.isDeleted = false;
+        entry.replacement = 0;
+        entry.rule = 1000;         // Invalid IBAN rule. No info about that either.
+        entry.ruleVersion = 0;
+        fillZKADetails(&entry, details: zkaDetails);
+
+        // No reverse lookup via BIC. The ZKA file doesn't contain BICs.
+        institutes[bankCode] = entry;
       }
     }
   }
@@ -238,6 +286,36 @@ internal class DERules : IBANRules {
     }
 
     return ("", "", "", "");
+  }
+
+  /// Override institutes info from the ECB by local information from the ZKA
+  /// (or even provide info at all for institutes not listed by the ECB).
+  override class func instituteDetailsForBIC(var bic: String) -> InstituteInfo? {
+    if let bankCode = bicToBankCode[bic], entry = institutes[bankCode] {
+      let info = InstituteInfo(
+        mfiID: "",
+        bic: entry.bic,
+        countryCode: "DE",
+        name: entry.name,
+        box: "",
+        address: "",
+        postal: entry.postalCode,
+        city: entry.place,
+        category: "",
+        domicile: "",
+        headName: "",
+        reserve: false,
+        exempt: false,
+
+        hbciVersion: entry.hbciVersion,
+        pinTanVersion: entry.pinTanVersion,
+        hostURL: entry.hostURL,
+        pinTanURL: entry.pinTanURL
+      )
+      return info;
+    };
+
+    return nil;
   }
 
   /// Returns the method to be used for account checks for the specific institute.
@@ -382,7 +460,9 @@ internal class DERules : IBANRules {
           }
         }
 
-        return (institute.bic, .OK);
+        if count(institute.bic) > 0 { // Some institutes don't have a BIC (if data comes from ZKA).
+          return (institute.bic, .OK);
+        }
       }
     }
 

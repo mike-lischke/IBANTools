@@ -105,6 +105,10 @@ internal class IBANRules : NSObject {
   class func bicForBankCode(bankCode: String) -> (bic: String, result: IBANToolsResult) {
     return ("", .NoBIC);
   }
+
+  class func instituteDetailsForBIC(var bic: String) -> InstituteInfo? {
+    return nil;
+  }
 }
 
 internal class AccountCheck : NSObject {
@@ -257,6 +261,19 @@ public class IBANtools: NSObject {
   /// Some of the financial institues in our list have no bic and the MFI ID is used as key.
   // So it can happen we cannot return
   public class func instituteDetailsForBIC(var bic: String) -> InstituteInfo? {
+
+    // Let country rules override ECB data.
+    let bundle = NSBundle(forClass: IBANtools.self);
+    for entry in countryData.keys {
+      var clazz: AnyClass! = bundle.classNamed(entry + "Rules");
+      if clazz != nil {
+        let rulesClass = clazz as! IBANRules.Type;
+        if let result = rulesClass.instituteDetailsForBIC(bic) {
+          return result;
+        }
+      }
+    }
+
     var result = institutesInfo[bic];
     if result == nil && !bic.hasSuffix("XXX") {
       // If we cannot find anything for the given bic and it is not already in the generic form
