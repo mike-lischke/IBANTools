@@ -125,9 +125,13 @@ public class IBANtools: NSObject {
 
   static var institutesInfo: [String: InstituteInfo] = [:];
   static var usedPath: String?;
+  static var patternForBIC: NSRegularExpression?;
 
   override public class func initialize() {
     super.initialize();
+
+    patternForBIC = NSRegularExpression(pattern: "^([a-zA-Z]{4}[a-zA-Z]{2}[a-zA-Z0-9]{2}([a-zA-Z0-9]{3})?)$",
+      options: .CaseInsensitive, error: nil);
 
     let bundle = NSBundle(forClass: IBANtools.self);
     if let resourcePath = bundle.pathForResource("eu_all_mfi", ofType: "txt", inDirectory: "") {
@@ -259,7 +263,7 @@ public class IBANtools: NSObject {
 
   /// Returns address, name and other info about an institute in Europe.
   /// Some of the financial institues in our list have no bic and the MFI ID is used as key.
-  // So it can happen we cannot return
+  /// So it can happen we cannot return such details even though we would have an entry for that institute.
   public class func instituteDetailsForBIC(var bic: String) -> InstituteInfo? {
 
     // Let country rules override ECB data.
@@ -287,6 +291,14 @@ public class IBANtools: NSObject {
   /// Validates the given IBAN. Returns true if the number is valid, otherwise false.
   public class func isValidIBAN(iban: String) -> Bool {
     return computeChecksum(iban) == 97;
+  }
+
+  public class func isValidBIC(text: String) -> Bool {
+    if (count(text) == 0) {
+      return false;
+    }
+
+    return patternForBIC?.numberOfMatchesInString(text, options: NSMatchingOptions(0), range: NSMakeRange(0, count(text))) == 1;
   }
 
   /// Wrapper function for isValidAccount function to be usable by Obj-C.
