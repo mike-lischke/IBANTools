@@ -60,8 +60,7 @@ import AppKit
   }
 }
 
-/// Institute info for use in Swift. For obj-c we use a dict with keys as written in the comments.
-@objc public class InstituteInfo {
+public class InstituteInfo: NSObject {
   public var mfiID: String;
   public var bic: String;
   public var countryCode: String;
@@ -81,7 +80,7 @@ import AppKit
   public var hostURL: String;       // host URL for DDV + RDH
   public var pinTanURL: String;
 
-  init() {
+  override init() {
     mfiID = "";
     bic = "";
     countryCode = "";
@@ -144,9 +143,9 @@ internal class AccountCheck : NSObject {
 
 public class IBANtools: NSObject {
 
-  static var institutesInfo: [String: InstituteInfo] = [:];
-  static var usedPath: String?;
-  static var patternForBIC: NSRegularExpression?;
+  private static var institutesInfo: [String: InstituteInfo] = [:];
+  private static var usedPath: String?;
+  private static var patternForBIC: NSRegularExpression?;
 
   override public class func initialize() {
     super.initialize();
@@ -258,7 +257,7 @@ public class IBANtools: NSObject {
   /// Returns address, name and other info about an institute in Europe.
   /// Some of the financial institues in our list have no bic and the MFI ID is used as key.
   /// So it can happen we cannot return such details even though we would have an entry for that institute.
-  public class func instituteDetailsForBIC(var bic: String) -> InstituteInfo? {
+  public class func instituteDetailsForBIC(bic: String) -> InstituteInfo? {
 
     // Let country rules override ECB data.
     let bundle = NSBundle(forClass: IBANtools.self);
@@ -276,23 +275,26 @@ public class IBANtools: NSObject {
     if result == nil && !bic.hasSuffix("XXX") {
       // If we cannot find anything for the given bic and it is not already in the generic form
       // (XXX at the end for no specific subsidary) try another lookup using the generic form.
-      bic = (bic as NSString).substringToIndex(count(bic) - 3) + "XXX";
-      result = institutesInfo[bic];
+      let newBic = (bic as NSString).substringToIndex(count(bic) - 3) + "XXX";
+      result = institutesInfo[newBic];
     }
     return result;
   }
 
   /// Validates the given IBAN. Returns true if the number is valid, otherwise false.
-  public class func isValidIBAN(iban: String) -> Bool {
-    return computeChecksum(iban) == 97;
+  public class func isValidIBAN(iban: String?) -> Bool {
+    if iban == nil || count(iban!) == 0 {
+        return false;
+    }
+    return computeChecksum(iban!) == 97;
   }
 
-  public class func isValidBIC(text: String) -> Bool {
-    if (count(text) == 0) {
+  public class func isValidBIC(text: String?) -> Bool {
+    if (text == nil || count(text!) == 0) {
       return false;
     }
 
-    return patternForBIC?.numberOfMatchesInString(text, options: NSMatchingOptions(0), range: NSMakeRange(0, count(text))) == 1;
+    return patternForBIC?.numberOfMatchesInString(text!, options: NSMatchingOptions(0), range: NSMakeRange(0, count(text!))) == 1;
   }
 
   /// Wrapper function for isValidAccount function to be usable by Obj-C.
