@@ -292,26 +292,21 @@ internal class DERules : IBANRules {
   /// (or even provide info at all for institutes not listed by the ECB).
   override class func instituteDetailsForBIC(var bic: String) -> InstituteInfo? {
     if let bankCode = bicToBankCode[bic], entry = institutes[bankCode] {
-      let info = InstituteInfo(
-        mfiID: "",
-        bic: entry.bic,
-        countryCode: "DE",
-        name: entry.name,
-        box: "",
-        address: "",
-        postal: entry.postalCode,
-        city: entry.place,
-        category: "",
-        domicile: "",
-        headName: "",
-        reserve: false,
-        exempt: false,
+      let info = InstituteInfo();
+      info.mfiID = "";
+      info.bic = entry.bic;
+      info.countryCode = "DE";
+      info.name = entry.name;
+      info.postal = entry.postalCode;
+      info.city = entry.place;
+      info.reserve = false;
+      info.exempt = false;
 
-        hbciVersion: entry.hbciVersion,
-        pinTanVersion: entry.pinTanVersion,
-        hostURL: entry.hostURL,
-        pinTanURL: entry.pinTanURL
-      )
+      info.hbciVersion = entry.hbciVersion;
+      info.pinTanVersion = entry.pinTanVersion;
+      info.hostURL = entry.hostURL;
+      info.pinTanURL = entry.pinTanURL;
+      
       return info;
     };
 

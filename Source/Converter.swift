@@ -61,25 +61,46 @@ import AppKit
 }
 
 /// Institute info for use in Swift. For obj-c we use a dict with keys as written in the comments.
-public struct InstituteInfo {
-  public let mfiID: String;         // MFIID
-  public let bic: String;           // BIC
-  public let countryCode: String;   // COUNTRY
-  public let name: String;          // NAME
-  public let box: String;           // BOX
-  public let address: String;       // ADDRESS
-  public let postal: String;        // POSTAL
-  public let city: String;          // CITY
-  public let category: String;      // CATEGORY
-  public let domicile: String;      // DOMICILE
-  public let headName: String;      // HEAD
-  public let reserve: Bool;         // RESERVE
-  public let exempt: Bool;          // EXEMPT
+@objc public class InstituteInfo {
+  public var mfiID: String;
+  public var bic: String;
+  public var countryCode: String;
+  public var name: String;
+  public var box: String;
+  public var address: String;
+  public var postal: String;
+  public var city: String;
+  public var category: String;
+  public var domicile: String;
+  public var headName: String;
+  public var reserve: Bool;
+  public var exempt: Bool;
 
-  public let hbciVersion: String;   // HBCI-VERSION (for DDV + RDH)
-  public let pinTanVersion: String; // PINTAN-VERSION (for HBCI Pin/Tan + RDH)
-  public let hostURL: String;       // HOST (host URL for DDV + RDH).
-  public let pinTanURL: String;     // URL
+  public var hbciVersion: String;   // for DDV + RDH
+  public var pinTanVersion: String; // for HBCI Pin/Tan + RDH
+  public var hostURL: String;       // host URL for DDV + RDH
+  public var pinTanURL: String;
+
+  init() {
+    mfiID = "";
+    bic = "";
+    countryCode = "";
+    name = "";
+    box = "";
+    address = "";
+    postal = "";
+    city = "";
+    category = "";
+    domicile = "";
+    headName = "";
+    reserve = false;
+    exempt = false;
+
+    hbciVersion = "";   // for DDV + RDH
+    pinTanVersion = ""; // for HBCI Pin/Tan + RDH
+    hostURL = "";       // host URL for DDV + RDH
+    pinTanURL = "";
+  }
 }
 
 typealias ConversionResult = (iban: String, result: IBANToolsResult);
@@ -177,26 +198,25 @@ public class IBANtools: NSObject {
             (hbciVersion, pinTanVersion, hostURL, pinTanURL) = rulesClass.onlineDetailsForBIC(entry[1]);
           }
 
-          let info = InstituteInfo(
-            mfiID: entry[0],
-            bic: entry[1],
-            countryCode: entry[2],
-            name: entry[3],
-            box: entry[4],
-            address: entry[5],
-            postal: entry[6],
-            city: entry[7],
-            category: entry[8],
-            domicile: entry[9],
-            headName: entry[11],
-            reserve: entry[12] == "Yes",
-            exempt: entry[13] == "Yes",
+          let info = InstituteInfo();
+          info.mfiID = entry[0];
+          info.bic = entry[1];
+          info.countryCode = entry[2];
+          info.name = entry[3];
+          info.box = entry[4]
+          info.address = entry[5];
+          info.postal = entry[6];
+          info.city = entry[7];
+          info.category = entry[8];
+          info.domicile = entry[9];
+          info.headName = entry[11];
+          info.reserve = entry[12] == "Yes";
+          info.exempt = entry[13] == "Yes";
 
-            hbciVersion: hbciVersion,
-            pinTanVersion: pinTanVersion,
-            hostURL: hostURL,
-            pinTanURL: pinTanURL
-          );
+          info.hbciVersion = hbciVersion;
+          info.pinTanVersion = pinTanVersion;
+          info.hostURL = hostURL;
+          info.pinTanURL = pinTanURL;
 
           // Many entries in the file have no BIC and a few use the same BIC. In both cases
           // we use the MFI ID instead (which is unique). We may later find a way to get the MFI ID
@@ -233,32 +253,6 @@ public class IBANtools: NSObject {
       // Now we can load our own data.
       loadData(path);
     }
-  }
-
-  /// Obj-c wrapper for same named Swift-only function.
-  public class func instituteDetailsForBIC(bic: NSString) -> Dictionary<NSString, AnyObject> {
-    var result: [NSString: AnyObject] = [:];
-    if let info = instituteDetailsForBIC(bic as String) {
-      result["MFIID"] = info.mfiID;
-      result["BIC"] = info.bic;
-      result["COUNTRY"] = info.countryCode;
-      result["NAME"] = info.name;
-      result["BOX"] = info.box;
-      result["ADDRESS"] = info.address;
-      result["POSTAL"] = info.postal;
-      result["CITY"] = info.city;
-      result["CATEGORY"] = info.category;
-      result["DOMICILE"] = info.domicile;
-      result["HEAD"] = info.headName;
-      result["RESERVE"] = NSNumber(bool: info.reserve);
-      result["EXEMPT"] = info.exempt;
-      result["HBCI-VERSION"] = info.hbciVersion;
-      result["PINTAN-VERSION"] = info.pinTanVersion;
-      result["HOST"] = info.hostURL;
-      result["URL"] = info.pinTanURL;
-
-    }
-    return result;
   }
 
   /// Returns address, name and other info about an institute in Europe.
