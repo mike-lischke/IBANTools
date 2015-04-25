@@ -283,7 +283,7 @@ public class IBANtools: NSObject {
 
   /// Validates the given IBAN. Returns true if the number is valid, otherwise false.
   public class func isValidIBAN(iban: String?) -> Bool {
-    if iban == nil || count(iban!) == 0 {
+    if iban == nil || count(iban!) < 4 {
         return false;
     }
     return computeChecksum(iban!) == 97;
@@ -533,6 +533,9 @@ public class IBANtools: NSObject {
       } else {
         var scalars = s.unicodeScalars;
         var v = scalars[scalars.startIndex].value;
+        if v < 55 {
+          return 0; // Some invalid character. Return invalid checksum.
+        }
         work += String(v - 55);
       }
     }

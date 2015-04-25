@@ -114,6 +114,12 @@ class IBANtoolsTests: XCTestCase {
     XCTAssert(IBANtools.isValidIBAN("AE260211000000230064016"));      // United Arab Emirates
     XCTAssert(IBANtools.isValidIBAN("GB29NWBK60161331926819"));       // United Kingdom
     XCTAssert(IBANtools.isValidIBAN("VG96VPVG0000012345678901"));     // Virgin Islands, British
+
+    // Make sure we can handle invalid input.
+    XCTAssertFalse(IBANtools.isValidIBAN("DE97500400000589011600 DRESDEFF265"));
+    XCTAssertFalse(IBANtools.isValidIBAN("\u{0004}\u{8888}"));
+    XCTAssertFalse(IBANtools.isValidIBAN("\u{0004}\u{8888}\u{0004}\u{8888}"));
+    XCTAssertFalse(IBANtools.isValidIBAN("DE97\u{0004}\u{8888}"));
   }
 
   // Variants for which we have no country specific code.
