@@ -393,7 +393,7 @@ public class IBANtools: NSObject {
   /// Entries used in the result dictionaries:
   ///   "bic" (String)
   ///   "result" (IBANToolsResult in an NSNumber)
-  public class func bicForIBAN(iban: String) -> Dictionary<String, AnyObject> {
+  public class func bicForIBAN(iban: String?) -> Dictionary<String, AnyObject> {
     let results: (bic: String, result: IBANToolsResult) = bicForIBAN(iban);
     var result: Dictionary<String, AnyObject> = [
       "bic": results.bic,
@@ -404,11 +404,14 @@ public class IBANtools: NSObject {
   }
   
   /// Returns the BIC for a given IBAN.
-  public class func bicForIBAN(iban: String) -> (bic: String, result: IBANToolsResult) {
-    let countryCode = (iban as NSString).substringWithRange(NSMakeRange(0, 2));
-    if let details = countryData[countryCode.uppercaseString] {
-      let bankCode = (iban as NSString).substringWithRange(NSMakeRange(4, details.bankCodeLength));
-      return bicForBankCode(bankCode, countryCode: countryCode);
+  public class func bicForIBAN(iban: String?) -> (bic: String, result: IBANToolsResult) {
+
+    if iban != nil {
+      let countryCode = iban!.substringToIndex(advance(iban!.startIndex, 2));
+      if let details = countryData[countryCode.uppercaseString] {
+        let bankCode = (iban! as NSString).substringWithRange(NSMakeRange(4, details.bankCodeLength));
+        return bicForBankCode(bankCode, countryCode: countryCode);
+      }
     }
     return ("", .NoBIC);
   }
