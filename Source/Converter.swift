@@ -283,7 +283,7 @@ public class IBANtools: NSObject {
 
   /// Validates the given IBAN. Returns true if the number is valid, otherwise false.
   public class func isValidIBAN(iban: String?) -> Bool {
-    if iban == nil || count(iban!) < 4 {
+    if iban == nil || count(iban!) < 8 {
         return false;
     }
     return computeChecksum(iban!) == 97;
