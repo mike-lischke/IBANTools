@@ -406,7 +406,7 @@ public class IBANtools: NSObject {
   /// Returns the BIC for a given IBAN.
   public class func bicForIBAN(iban: String?) -> (bic: String, result: IBANToolsResult) {
 
-    if iban != nil {
+    if iban != nil && count(iban!) > 8 {
       let countryCode = iban!.substringToIndex(advance(iban!.startIndex, 2));
       if let details = countryData[countryCode.uppercaseString] {
         let bankCode = (iban! as NSString).substringWithRange(NSMakeRange(4, details.bankCodeLength));
