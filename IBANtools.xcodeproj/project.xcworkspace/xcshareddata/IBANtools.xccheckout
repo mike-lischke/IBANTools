@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
+	<false/>
+	<key>IDESourceControlProjectIdentifier</key>
+	<string>BF3E8350-6AED-4B3A-B56C-39657DC1D4C8</string>
+	<key>IDESourceControlProjectName</key>
+	<string>IBANtools</string>
+	<key>IDESourceControlProjectOriginsDictionary</key>
+	<dict>
+		<key>F61A447CE192EACDB0506E02DF8D2CE4BC1A2F0A</key>
+		<string>https://github.com/mike-lischke/IBANTools</string>
+	</dict>
+	<key>IDESourceControlProjectPath</key>
+	<string>IBANtools.xcodeproj</string>
+	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
+	<dict>
+		<key>F61A447CE192EACDB0506E02DF8D2CE4BC1A2F0A</key>
+		<string>../..</string>
+	</dict>
+	<key>IDESourceControlProjectURL</key>
+	<string>https://github.com/mike-lischke/IBANTools</string>
+	<key>IDESourceControlProjectVersion</key>
+	<integer>111</integer>
+	<key>IDESourceControlProjectWCCIdentifier</key>
+	<string>F61A447CE192EACDB0506E02DF8D2CE4BC1A2F0A</string>
+	<key>IDESourceControlProjectWCConfigurations</key>
+	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.git</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>F61A447CE192EACDB0506E02DF8D2CE4BC1A2F0A</string>
+			<key>IDESourceControlWCCName</key>
+			<string>IBANtools</string>
+		</dict>
+	</array>
+</dict>
+</plist>
