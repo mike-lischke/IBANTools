@@ -54,8 +54,6 @@ import AppKit
       return "NoChecksum";
     case WrongValue:
       return "WrongValue";
-    default:
-      return "Invalid enum value";
     }
   }
 }
@@ -106,7 +104,7 @@ typealias ConversionResult = (iban: String, result: IBANToolsResult);
 
 /// Base classes for country specific rules.
 /// Note: @objc and the NSObject base class are necessary to make dynamic instantiation + initialize override working.
-internal class IBANRules : NSObject {
+class IBANRules : NSObject {
   class func loadData(path: String) {
   }
 
@@ -126,12 +124,12 @@ internal class IBANRules : NSObject {
     return ("", .NoBIC);
   }
 
-  class func instituteDetailsForBIC(var bic: String) -> InstituteInfo? {
+  class func instituteDetailsForBIC(bic: String) -> InstituteInfo? {
     return nil;
   }
 }
 
-internal class AccountCheck : NSObject {
+class AccountCheck : NSObject {
   class func loadData(path: String) {
   }
 
@@ -150,8 +148,8 @@ public class IBANtools: NSObject {
   override public class func initialize() {
     super.initialize();
 
-    patternForBIC = NSRegularExpression(pattern: "^([a-zA-Z]{4}[a-zA-Z]{2}[a-zA-Z0-9]{2}([a-zA-Z0-9]{3})?)$",
-      options: .CaseInsensitive, error: nil);
+    patternForBIC = try? NSRegularExpression(pattern: "^([a-zA-Z]{4}[a-zA-Z]{2}[a-zA-Z0-9]{2}([a-zA-Z0-9]{3})?)$",
+      options: .CaseInsensitive);
 
     let bundle = NSBundle(forClass: IBANtools.self);
     if let resourcePath = bundle.pathForResource("eu_all_mfi", ofType: "txt", inDirectory: "") {
@@ -161,24 +159,17 @@ public class IBANtools: NSObject {
 
   private class func loadData(path: String) {
     if NSFileManager.defaultManager().fileExistsAtPath(path + "/eu_all_mfi.txt") {
-      var error: NSError?;
-      let content = NSString(contentsOfFile: path + "/eu_all_mfi.txt", encoding: NSUTF8StringEncoding, error: &error);
-      if error != nil {
-        let alert = NSAlert.init(error: error!);
-        alert.runModal();
-        return;
-      }
-
-      if content != nil {
+      do {
+        let content = try NSString(contentsOfFile: path + "/eu_all_mfi.txt", encoding: NSUTF8StringEncoding);
         let bundle = NSBundle(forClass: IBANtools.self);
 
         usedPath = path + "/eu_all_mfi.txt";
         institutesInfo = [:];
 
         // Extract institute details.
-        for line in content!.componentsSeparatedByCharactersInSet(NSCharacterSet.newlineCharacterSet()) {
-          let s: NSString = line as! NSString;
-          let entry = s.componentsSeparatedByString("\t") as! [String];
+        for line in content.componentsSeparatedByCharactersInSet(NSCharacterSet.newlineCharacterSet()) {
+          let s: NSString = line as NSString;
+          let entry = s.componentsSeparatedByString("\t") ;
           if entry.count == 0 {
             continue;
           }
@@ -192,7 +183,7 @@ public class IBANtools: NSObject {
           var pinTanVersion = "";
           var hostURL = "";
           var pinTanURL = "";
-          if let clazz: AnyClass = bundle.classNamed(entry[2] + "Rules") where count(entry[1]) > 0 {
+          if let clazz: AnyClass = bundle.classNamed(entry[2] + "Rules") where entry[1].characters.count > 0 {
             let rulesClass = clazz as! IBANRules.Type;
             (hbciVersion, pinTanVersion, hostURL, pinTanURL) = rulesClass.onlineDetailsForBIC(entry[1]);
           }
@@ -220,12 +211,17 @@ public class IBANtools: NSObject {
           // Many entries in the file have no BIC and a few use the same BIC. In both cases
           // we use the MFI ID instead (which is unique). We may later find a way to get the MFI ID
           // from a BIC.
-          var key = count(entry[1]) > 0 ? entry[1] : entry[0];
+          var key = entry[1].characters.count > 0 ? entry[1] : entry[0];
           if institutesInfo[key] != nil {
             key = entry[0];
           }
           institutesInfo[key] = info; // Info keyed by BIC or (if the bic is empty/duplicate) by MFI ID.
         }
+      }
+      catch let error as NSError {
+        let alert = NSAlert.init(error: error);
+        alert.runModal();
+        return;
       }
     }
   }
@@ -262,7 +258,7 @@ public class IBANtools: NSObject {
     // Let country rules override ECB data.
     let bundle = NSBundle(forClass: IBANtools.self);
     for entry in countryData.keys {
-      var clazz: AnyClass! = bundle.classNamed(entry + "Rules");
+      let clazz: AnyClass! = bundle.classNamed(entry + "Rules");
       if clazz != nil {
         let rulesClass = clazz as! IBANRules.Type;
         if let result = rulesClass.instituteDetailsForBIC(bic) {
@@ -275,7 +271,7 @@ public class IBANtools: NSObject {
     if result == nil && !bic.hasSuffix("XXX") {
       // If we cannot find anything for the given bic and it is not already in the generic form
       // (XXX at the end for no specific subsidary) try another lookup using the generic form.
-      let newBic = (bic as NSString).substringToIndex(count(bic) - 3) + "XXX";
+      let newBic = (bic as NSString).substringToIndex(bic.characters.count - 3) + "XXX";
       result = institutesInfo[newBic];
     }
     return result;
@@ -283,18 +279,18 @@ public class IBANtools: NSObject {
 
   /// Validates the given IBAN. Returns true if the number is valid, otherwise false.
   public class func isValidIBAN(iban: String?) -> Bool {
-    if iban == nil || count(iban!) < 8 {
+    if iban == nil || (iban!).characters.count < 8 {
         return false;
     }
     return computeChecksum(iban!) == 97;
   }
 
   public class func isValidBIC(text: String?) -> Bool {
-    if (text == nil || count(text!) == 0) {
+    if (text == nil || (text!).characters.count == 0) {
       return false;
     }
 
-    return patternForBIC?.numberOfMatchesInString(text!, options: NSMatchingOptions(0), range: NSMakeRange(0, count(text!))) == 1;
+    return patternForBIC?.numberOfMatchesInString(text!, options: NSMatchingOptions(rawValue: 0), range: NSMakeRange(0, (text!).characters.count)) == 1;
   }
 
   /// Wrapper function for isValidAccount function to be usable by Obj-C.
@@ -309,7 +305,7 @@ public class IBANtools: NSObject {
     var mutableAccount = account;
     var mutableBankCode = bankCode;
     let results = isValidAccount(&mutableAccount, bankCode: &mutableBankCode, countryCode: countryCode, forIBAN: forIBAN);
-    var result: Dictionary<String, AnyObject> = [
+    let result: Dictionary<String, AnyObject> = [
       "valid": NSNumber(bool: results.valid),
       "account": mutableAccount,
       "bankCode": mutableBankCode,
@@ -327,7 +323,7 @@ public class IBANtools: NSObject {
 
     account = account.stringByReplacingOccurrencesOfString(" ", withString: "");
     bankCode = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
-    if count(account) == 0 || count(bankCode) == 0 || count(countryCode) != 2 {
+    if account.characters.count == 0 || bankCode.characters.count == 0 || countryCode.characters.count != 2 {
       return (false, .WrongValue);
     }
 
@@ -337,7 +333,7 @@ public class IBANtools: NSObject {
 
     countryCode = countryCode.uppercaseString;
 
-    if let details = countryData[countryCode] {
+    if let _ = countryData[countryCode] {
       let bundle = NSBundle(forClass: IBANtools.self);
       let clazz: AnyClass! = bundle.classNamed(countryCode + "AccountCheck");
       if clazz != nil {
@@ -355,7 +351,7 @@ public class IBANtools: NSObject {
   ///   "result" (IBANToolsResult in an NSNumber)
   public class func bicForBankCode(bankCode: String, countryCode: String) -> Dictionary<String, AnyObject> {
     let results: (bic: String, result: IBANToolsResult) = bicForBankCode(bankCode, countryCode: countryCode);
-    var result: Dictionary<String, AnyObject> = [
+    let result: Dictionary<String, AnyObject> = [
       "bic": results.bic,
       "result": NSNumber(integer: results.result.rawValue),
     ];
@@ -367,7 +363,7 @@ public class IBANtools: NSObject {
   /// this lookup only works for those countries with a specific implementation (DE atm).
   public class func bicForBankCode(var bankCode: String, var countryCode: String) -> (bic: String, result: IBANToolsResult) {
     bankCode = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
-    if count(bankCode) == 0 || count(countryCode) != 2 {
+    if bankCode.characters.count == 0 || countryCode.characters.count != 2 {
       return ("", .WrongValue);
     }
 
@@ -377,7 +373,7 @@ public class IBANtools: NSObject {
 
     countryCode = countryCode.uppercaseString;
 
-    if let details = countryData[countryCode] {
+    if let _ = countryData[countryCode] {
       let bundle = NSBundle(forClass: IBANtools.self);
       let clazz: AnyClass! = bundle.classNamed(countryCode + "Rules");
       if clazz != nil {
@@ -395,7 +391,7 @@ public class IBANtools: NSObject {
   ///   "result" (IBANToolsResult in an NSNumber)
   public class func bicForIBAN(iban: String?) -> Dictionary<String, AnyObject> {
     let results: (bic: String, result: IBANToolsResult) = bicForIBAN(iban);
-    var result: Dictionary<String, AnyObject> = [
+    let result: Dictionary<String, AnyObject> = [
       "bic": results.bic,
       "result": NSNumber(integer: results.result.rawValue),
     ];
@@ -406,8 +402,8 @@ public class IBANtools: NSObject {
   /// Returns the BIC for a given IBAN.
   public class func bicForIBAN(iban: String?) -> (bic: String, result: IBANToolsResult) {
 
-    if iban != nil && count(iban!) > 8 {
-      let countryCode = iban!.substringToIndex(advance(iban!.startIndex, 2));
+    if iban != nil && (iban!).characters.count > 8 {
+      let countryCode = iban!.substringToIndex(iban!.startIndex.advancedBy(2));
       if let details = countryData[countryCode.uppercaseString] {
         let bankCode = (iban! as NSString).substringWithRange(NSMakeRange(4, details.bankCodeLength));
         return bicForBankCode(bankCode, countryCode: countryCode);
@@ -430,7 +426,7 @@ public class IBANtools: NSObject {
     let results = convertToIBAN(&mutableAccount, bankCode: &mutableBankCode, countryCode: countryCode,
       validateAccount: validateAccount);
 
-    var result: Dictionary<String, AnyObject> = [
+    let result: Dictionary<String, AnyObject> = [
       "iban": results.iban,
       "account": mutableAccount,
       "bankCode": mutableBankCode,
@@ -453,7 +449,7 @@ public class IBANtools: NSObject {
 
       account = account.stringByReplacingOccurrencesOfString(" ", withString: "");
       bankCode = bankCode.stringByReplacingOccurrencesOfString(" ", withString: "");
-      if count(account) == 0 || count(bankCode) == 0 || count(countryCode) != 2 {
+      if account.characters.count == 0 || bankCode.characters.count == 0 || countryCode.characters.count != 2 {
         return ("", .WrongValue);
       }
 
@@ -489,11 +485,11 @@ public class IBANtools: NSObject {
 
         // Do length check *after* the country specific rules. They might rely on the exact
         // account number (e.g. for special accounts).
-        if count(account) < details.accountLength {
-          account = String(count: details.accountLength - count(account), repeatedValue: "0" as Character) + account;
+        if account.characters.count < details.accountLength {
+          account = String(count: details.accountLength - account.characters.count, repeatedValue: "0" as Character) + account;
         }
-        if count(bankCode) < details.bankCodeLength {
-          bankCode = String(count: details.bankCodeLength - count(bankCode), repeatedValue: "0" as Character) + bankCode;
+        if bankCode.characters.count < details.bankCodeLength {
+          bankCode = String(count: details.bankCodeLength - bankCode.characters.count, repeatedValue: "0" as Character) + bankCode;
         }
       } else {
         if validateAccount {
@@ -506,7 +502,7 @@ public class IBANtools: NSObject {
 
       if result.1 == .DefaultIBAN {
         var checksum = String(computeChecksum(countryCode + "00" + bankCode.uppercaseString + account.uppercaseString));
-        if count(checksum) < 2 {
+        if checksum.characters.count < 2 {
           checksum = "0" + checksum;
         }
 
@@ -517,8 +513,8 @@ public class IBANtools: NSObject {
 
   private class func mod97(s: String) -> Int {
     var result = 0;
-    for c in s {
-      let i = String(c).toInt()!;
+    for c in s.characters {
+      let i = Int(String(c))!;
       result = (result * 10 + i) % 97;
     }
     return result;
@@ -527,15 +523,15 @@ public class IBANtools: NSObject {
   private class func computeChecksum(iban: NSString) -> Int {
     var work: String = "";
     let countryCode = iban.substringToIndex(2);
-    var checksum = iban.substringWithRange(NSMakeRange(2, 2));
+    let checksum = iban.substringWithRange(NSMakeRange(2, 2));
     let bban = iban.substringFromIndex(4); // Basic bank account number.
-    for char in (bban + countryCode) {
+    for char in (bban + countryCode).characters {
       let s = String(char);
       if (char >= "0") && (char <= "9") {
         work += s;
       } else {
-        var scalars = s.unicodeScalars;
-        var v = scalars[scalars.startIndex].value;
+        let scalars = s.unicodeScalars;
+        let v = scalars[scalars.startIndex].value;
         if v < 55 {
           return 0; // Some invalid character. Return invalid checksum.
         }
@@ -549,7 +545,7 @@ public class IBANtools: NSObject {
   /// Checks if the input string only consists of letters and numbers.
   /// Everything else is considered wrong.
   private class func containsInvalidChars(input: String) -> Bool {
-    for c in input {
+    for c in input.characters {
       if c < "0" || (c > "9" && c < "A") || (c > "Z" && c < "a") || c > "z" {
         return true;
       }

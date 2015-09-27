@@ -29,8 +29,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		27428E271A3DBBAF00DC3DB3 /* DERules.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = DERules.swift; path = Source/DERules.swift; sourceTree = SOURCE_ROOT; wrapsLines = 0; };
-		2775C2241A45B8E100F912C1 /* DEAccountCheck.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = DEAccountCheck.swift; path = Source/DEAccountCheck.swift; sourceTree = SOURCE_ROOT; wrapsLines = 0; };
+		27428E271A3DBBAF00DC3DB3 /* DERules.swift */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.swift; name = DERules.swift; path = Source/DERules.swift; sourceTree = SOURCE_ROOT; tabWidth = 2; wrapsLines = 0; };
+		2775C2241A45B8E100F912C1 /* DEAccountCheck.swift */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.swift; name = DEAccountCheck.swift; path = Source/DEAccountCheck.swift; sourceTree = SOURCE_ROOT; tabWidth = 2; wrapsLines = 0; };
 		2775C2261A45BA7E00F912C1 /* AccountCheckDETests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = AccountCheckDETests.swift; path = Tests/AccountCheckDETests.swift; sourceTree = SOURCE_ROOT; wrapsLines = 0; };
 		278980671A4094F300C2495F /* de */ = {isa = PBXFileReference; lastKnownFileType = folder; name = de; path = Resources/de; sourceTree = "<group>"; };
 		27A840AF1A33442700B78076 /* IBANtools.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = IBANtools.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -185,7 +185,9 @@
 		27A840A61A33442600B78076 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0610;
+				LastSwiftMigration = 0700;
+				LastSwiftUpdateCheck = 0700;
+				LastUpgradeCheck = 0700;
 				ORGANIZATIONNAME = "Mike Lischke";
 				TargetAttributes = {
 					27A840AE1A33442700B78076 = {
@@ -285,6 +287,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -362,6 +365,7 @@
 				INFOPLIST_FILE = Source/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "mike.lischke.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = IBANtools;
 				SKIP_INSTALL = YES;
 				SWIFT_INSTALL_OBJC_HEADER = YES;
@@ -385,6 +389,7 @@
 				INFOPLIST_FILE = Source/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "mike.lischke.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = IBANtools;
 				SKIP_INSTALL = YES;
 				SWIFT_INSTALL_OBJC_HEADER = YES;
@@ -408,6 +413,7 @@
 				);
 				INFOPLIST_FILE = Tests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "mike.lischke.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = IBANtoolsTests;
 			};
 			name = Debug;
@@ -424,6 +430,7 @@
 				GCC_INSTRUMENT_PROGRAM_FLOW_ARCS = NO;
 				INFOPLIST_FILE = Tests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "mike.lischke.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = IBANtoolsTests;
 			};
 			name = Release;

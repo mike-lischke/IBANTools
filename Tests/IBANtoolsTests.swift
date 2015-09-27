@@ -195,11 +195,11 @@ class IBANtoolsTests: XCTestCase {
       var accountNumber = entry.account;
       var bankCodeNumber = entry.bank;
       if let details = countryData[entry.code] {
-        if count(accountNumber) < details.accountLength {
-          accountNumber = String(count: details.accountLength - count(accountNumber), repeatedValue: "0" as Character) + accountNumber;
+        if accountNumber.characters.count < details.accountLength {
+          accountNumber = String(count: details.accountLength - accountNumber.characters.count, repeatedValue: "0" as Character) + accountNumber;
         }
-        if count(bankCodeNumber) < details.bankCodeLength {
-          bankCodeNumber = String(count: details.bankCodeLength - count(bankCodeNumber), repeatedValue: "0" as Character) + bankCodeNumber;
+        if bankCodeNumber.characters.count < details.bankCodeLength {
+          bankCodeNumber = String(count: details.bankCodeLength - bankCodeNumber.characters.count, repeatedValue: "0" as Character) + bankCodeNumber;
         }
       }
       let expected = entry.code + entry.checksum + bankCodeNumber + accountNumber;
@@ -214,7 +214,7 @@ class IBANtoolsTests: XCTestCase {
   }
 
   func bankCodeToBicTest(bankCode: String, countryCode: String, _ expected: (bic: String, result: IBANToolsResult)) -> Bool {
-    let (bic: String, result: IBANToolsResult) = IBANtools.bicForBankCode(bankCode, countryCode: countryCode);
+    let (bic, result): (String, IBANToolsResult) = IBANtools.bicForBankCode(bankCode, countryCode: countryCode);
     return bic == expected.bic && result == expected.result;
   }
 
@@ -512,7 +512,7 @@ class IBANtoolsTests: XCTestCase {
     XCTAssert(bankInfoTest2("HYVEDEMM466", (true, "300", "300", "https://hbci-01.hypovereinsbank.de/bank/hbci")));
     XCTAssert(bankInfoTest2("WELADED1EMR", (true, "220", "plus", "https://hbci-pintan-rl.s-hbci.de/PinTanServlet")));
 
-    let (bic: String, result: IBANToolsResult) = IBANtools.bicForBankCode("30060601", countryCode: "DE");
+    let (bic, _): (String, IBANToolsResult) = IBANtools.bicForBankCode("30060601", countryCode: "DE");
     XCTAssert(bankInfoTest(bic, (true, "DE", "Deutsche Apotheker- und Ärztebank eG", "Düsseldorf", "")));
     XCTAssert(bankInfoTest2(bic, (true, "300", "300", "https://hbci-pintan.gad.de/cgi-bin/hbciservlet")));
   }

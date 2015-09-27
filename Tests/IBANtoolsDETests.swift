@@ -36,7 +36,7 @@ class IBANtoolsDETests: XCTestCase {
     let conversionResult = IBANtools.convertToIBAN(&account, bankCode: &bank, countryCode: country, validateAccount: checkAccount);
     let result = conversionResult.0 == expected.0 && conversionResult.1 == expected.1;
     if !result {
-      println("\naccount: \(account), bank: \(bank), expected: (\(expected.0), " +
+      print("\naccount: \(account), bank: \(bank), expected: (\(expected.0), " +
         "\(expected.1.description())), actual: (\(conversionResult.iban), " +
         "\(conversionResult.result.description()))\n");
     }
@@ -48,10 +48,10 @@ class IBANtoolsDETests: XCTestCase {
     _ checkAccount: Bool = false) -> Bool {
 
       let ibanResult = IBANtools.convertToIBAN(&account, bankCode: &bank, countryCode: country, validateAccount: checkAccount);
-      if count(ibanResult.iban) == 0 {
+      if ibanResult.iban.characters.count == 0 {
         let result = (ibanResult.iban == expected.iban) && (ibanResult.result == expected.ibanResult);
         if !result {
-          println("\naccount: \(account), bank: \(bank), expected: (\(expected.0), " +
+          print("\naccount: \(account), bank: \(bank), expected: (\(expected.0), " +
             "\(expected.ibanResult.description())), actual: (\(ibanResult.iban), " +
             "\(ibanResult.result.description()))\n");
         }
@@ -63,7 +63,7 @@ class IBANtoolsDETests: XCTestCase {
         (bicResult.bic == expected.bic) && (bicResult.result == expected.bicResult);
 
       if !result {
-        println("\naccount: \(account), bank: \(bank), expected: (\(expected.iban), \(expected.bic), " +
+        print("\naccount: \(account), bank: \(bank), expected: (\(expected.iban), \(expected.bic), " +
           "\(expected.ibanResult.description()), \(expected.bicResult.description())), " +
           "actual: (\(ibanResult.iban), \(bicResult.bic), \(ibanResult.result.description()), " +
           "\(bicResult.result.description()))\n");

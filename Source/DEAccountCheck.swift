@@ -314,15 +314,9 @@ internal class DEAccountCheck : AccountCheck {
 
   override class func loadData(path: String) {
     if NSFileManager.defaultManager().fileExistsAtPath(path + "/mappings.txt") {
-      var error: NSError?;
-      let content = NSString(contentsOfFile: path + "/mappings.txt", encoding: NSUTF8StringEncoding, error: &error);
-      if error != nil {
-        let alert = NSAlert.init(error: error!);
-        alert.runModal();
-        return;
-      }
+      do {
+        let content = try NSString(contentsOfFile: path + "/mappings.txt", encoding: NSUTF8StringEncoding);
 
-      if content != nil {
         mappings = [:];
 
         var sourceBankCode: NSString = "";
@@ -336,8 +330,8 @@ internal class DEAccountCheck : AccountCheck {
         var targetBankCodeIndex = -1;
         var targetAccountIndex = -1;
 
-        for line in content!.componentsSeparatedByCharactersInSet(NSCharacterSet.newlineCharacterSet()) {
-          var s: NSString = line as! NSString;
+        for line in content.componentsSeparatedByCharactersInSet(NSCharacterSet.newlineCharacterSet()) {
+          var s: NSString = line as NSString;
           s = s.stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceCharacterSet());
           if s.length == 0 || s.hasPrefix("//")  || s.hasPrefix("#"){
             continue; // Ignore empty and comment lines.
@@ -356,9 +350,9 @@ internal class DEAccountCheck : AccountCheck {
             s = s.substringWithRange(NSMakeRange(1, s.length - 2));
             var index = 0;
             for part in s.componentsSeparatedByCharactersInSet(NSCharacterSet.whitespaceCharacterSet()) {
-              let p = part as! NSString;
+              let p = part as NSString;
               if !p.hasPrefix("#") && p != "_" {
-                rule = (part as! String).toInt()!;
+                rule = Int(part)!;
                 continue;
               }
 
@@ -378,7 +372,7 @@ internal class DEAccountCheck : AccountCheck {
                 }
               case "#sa":
                 if explicitValue.length > 0 {
-                  entry.rangeStart = (explicitValue as String).toInt()!;
+                  entry.rangeStart = Int((explicitValue as String))!;
                   entry.rangeEnd = entry.rangeStart;
                   sourceAccountIndex = -1;
                 } else {
@@ -386,28 +380,28 @@ internal class DEAccountCheck : AccountCheck {
                 }
               case "#ss":
                 if explicitValue.length > 0 {
-                  entry.rangeStart = (explicitValue as String).toInt()!;
+                  entry.rangeStart = Int(explicitValue as String)!;
                   sourceAccountStartIndex = -1;
                 } else {
                   sourceAccountStartIndex = index++;
                 }
               case "#se":
                 if explicitValue.length > 0 {
-                  entry.rangeEnd = (explicitValue as String).toInt()!;
+                  entry.rangeEnd = Int(explicitValue as String)!;
                   sourceAccountEndIndex = -1;
                 } else {
                   sourceAccountEndIndex = index++;
                 }
               case "#tc":
                 if explicitValue.length > 0 {
-                  entry.bankCode = (explicitValue as String).toInt()!;
+                  entry.bankCode = Int(explicitValue as String)!;
                   targetBankCodeIndex = -1;
                 } else {
                   targetBankCodeIndex = index++;
                 }
               case "#ta":
                 if explicitValue.length > 0 {
-                  entry.account = (explicitValue as String).toInt()!;
+                  entry.account = Int(explicitValue as String)!;
                   targetAccountIndex = -1;
                 } else {
                   targetAccountIndex = index++;
@@ -423,32 +417,32 @@ internal class DEAccountCheck : AccountCheck {
           }
 
           // Normal mapping line.
-          let parts: [String] = s.componentsSeparatedByCharactersInSet(NSCharacterSet.whitespaceCharacterSet()) as! [String];
+          let parts: [String] = s.componentsSeparatedByCharactersInSet(NSCharacterSet.whitespaceCharacterSet()) ;
           if sourceBankCodeIndex > -1 && sourceBankCodeIndex < parts.count {
             sourceBankCode = parts[sourceBankCodeIndex];
           }
           if sourceAccountIndex > -1 && sourceAccountIndex < parts.count {
-            entry.rangeStart = parts[sourceAccountIndex].toInt()!;
+            entry.rangeStart = Int(parts[sourceAccountIndex])!;
             entry.rangeEnd = entry.rangeStart;
           }
           if sourceAccountStartIndex > -1 && sourceAccountStartIndex < parts.count {
-            entry.rangeStart = parts[sourceAccountStartIndex].toInt()!;
+            entry.rangeStart = Int(parts[sourceAccountStartIndex])!;
           }
           if sourceAccountEndIndex > -1 && sourceAccountEndIndex < parts.count {
-            entry.rangeEnd = parts[sourceAccountEndIndex].toInt()!;
+            entry.rangeEnd = Int(parts[sourceAccountEndIndex])!;
           }
           if targetBankCodeIndex > -1 && targetBankCodeIndex < parts.count {
-            entry.bankCode = parts[targetBankCodeIndex].toInt()!;
+            entry.bankCode = Int(parts[targetBankCodeIndex])!;
           }
           if targetAccountIndex > -1 && targetAccountIndex < parts.count {
-            entry.account = parts[targetAccountIndex].toInt()!;
+            entry.account = Int(parts[targetAccountIndex])!;
           }
 
           // There can never be multiple IBAN rules for a given bank code as every bank code is
           // covered by exactly one rule (or none at all).
           // The source bank code can actually be a list of bank codes.
           for bankCode in sourceBankCode.componentsSeparatedByString(",") {
-            let code = (bankCode as! String).toInt()!;
+            let code = Int(bankCode)!;
             var mappingTuple = mappings[code];
             if mappingTuple == nil {
               mappingTuple = (rule, []);
@@ -457,6 +451,10 @@ internal class DEAccountCheck : AccountCheck {
             mappings[code] = mappingTuple;
           }
         }
+      } catch let error as NSError {
+        let alert = NSAlert.init(error: error);
+        alert.runModal();
+        return;
       }
     }
   }
@@ -471,7 +469,7 @@ internal class DEAccountCheck : AccountCheck {
   }
 
   override class func isValidAccount(inout account: String, inout _ bankCode: String, _ forIBAN: Bool) -> (Bool, IBANToolsResult) {
-    let accountAsInt = account.toInt();
+    let accountAsInt = Int(account);
     if accountAsInt == nil {
       return (false, .WrongValue);
     }
@@ -482,7 +480,7 @@ internal class DEAccountCheck : AccountCheck {
       // if we can find something from the private mappings (based on account clusters). This may give us
       // another bank code if there's a set of mappings for a specific IBAN rule to which the
       // original bank code belongs (this way we ensure we don't mess with accounts from other banks).
-      let newBankCode = bankCodeFromAccountCluster(accountAsInt!, bankCode: bankCode.toInt()!);
+      let newBankCode = bankCodeFromAccountCluster(accountAsInt!, bankCode: Int(bankCode)!);
       if newBankCode > -1 {
         bankCode = String(newBankCode);
         method = DERules.checkSumMethodForInstitute(bankCode);
@@ -502,7 +500,7 @@ internal class DEAccountCheck : AccountCheck {
     if checkSpecial {
       checkSpecialAccount(&account, bankCode: &bankCode);
     }
-    var accountAsInt: Int = account.toInt()!; // This must be valid at this point.
+    var accountAsInt: Int = Int(account)!; // This must be valid at this point.
 
     var method = startMethod;
     var workSlice: ArraySlice<UInt16> = [];
@@ -538,7 +536,7 @@ internal class DEAccountCheck : AccountCheck {
 
     // Convert account digits to their number values in an array.
     // Remove leading zeros to have the real lenght of the original number.
-    let stripped = toString(accountAsInt);
+    let stripped = String(accountAsInt);
     var temp = [UInt16](stripped.utf16);
     var number: [UInt16] = [];
     for n in temp {
@@ -550,7 +548,7 @@ internal class DEAccountCheck : AccountCheck {
 
     // Fill the original number on the left with zeros to get to a 10 digits number.
     // Determine the exact number of leading zeros for some special checks.
-    let leadingZeros = 10 - count(stripped);
+    let leadingZeros = 10 - stripped.characters.count;
     temp = [UInt16]((String(count: leadingZeros, repeatedValue: "0" as Character) + stripped).utf16);
     for n in temp {
       number10.append(n - 48);
@@ -624,7 +622,7 @@ internal class DEAccountCheck : AccountCheck {
       useMethod("26b");
 
     case "32" where bankCode == "13091054" && forIBAN: // Pommersche Voksbank, special accounts always valid for IBAN.
-        if contains(accounts13091054, accountAsInt) {
+        if accounts13091054.contains(accountAsInt) {
           return (true, .NoChecksum, -1); // No checks for checksum in those special accounts.
         }
       break;
@@ -1105,8 +1103,8 @@ internal class DEAccountCheck : AccountCheck {
         return defaultTrueResult;
 
       case 1...31: // Variant 4.
-        var inner1 = number10[2] * 10 + number10[3];
-        var inner2 = number10[6] * 100 + number10[7] * 10 + number10[8];
+        let inner1 = number10[2] * 10 + number10[3];
+        let inner2 = number10[6] * 100 + number10[7] * 10 + number10[8];
         if 1...12 ~= inner1 && inner2 < 500 {
           return defaultTrueResult;
         }
@@ -1171,7 +1169,7 @@ internal class DEAccountCheck : AccountCheck {
 
       for subMethod in ["73a", "73b", "73c"] {
         useMethod(subMethod);
-        var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
+        let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .DontMap, .ReturnDifference]);
         if expectedCheckSum == checksum {
           return (true, .OK, parameters.indices.check);
@@ -1201,7 +1199,7 @@ internal class DEAccountCheck : AccountCheck {
       }
 
     case "77":
-      var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
+      let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.DontMap, .DontMap, .ReturnDivByModulus], useDigitSum: false);
       if checksum == 0 {
         return (true, .OK, parameters.indices.check);
@@ -1216,7 +1214,7 @@ internal class DEAccountCheck : AccountCheck {
       } else {
         if number10[2] == 9 && number10[3] == 9 {
           useMethod(method + "d");
-          var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
+          let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
             mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
           let valid = expectedCheckSum == checksum;
           return (valid, valid ? .OK : .BadAccount, parameters.indices.check);
@@ -1225,7 +1223,7 @@ internal class DEAccountCheck : AccountCheck {
 
       for subMethod in [method + "a", method + "b", method + "c"] {
         useMethod(subMethod);
-        var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
+        let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .OK, parameters.indices.check);
@@ -1304,7 +1302,7 @@ internal class DEAccountCheck : AccountCheck {
 
       for subMethod in ["90a", "90b"] {
         useMethod(subMethod);
-        var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
+        let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .OK, parameters.indices.check);
@@ -1345,7 +1343,7 @@ internal class DEAccountCheck : AccountCheck {
     case "91":
       for subMethod in ["91a", "91b", "91c", "91d"] {
         useMethod(subMethod);
-        var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
+        let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .OK, parameters.indices.check);
@@ -1385,7 +1383,7 @@ internal class DEAccountCheck : AccountCheck {
       }
 
       useMethod("A4c");
-      var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
+      let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .OK, parameters.indices.check);
@@ -1490,7 +1488,7 @@ internal class DEAccountCheck : AccountCheck {
     case "D5":
       for subMethod in ["D5a", "D5b"] {
         useMethod(subMethod);
-        var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
+        let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .OK, parameters.indices.check);
@@ -1503,7 +1501,7 @@ internal class DEAccountCheck : AccountCheck {
 
       for subMethod in ["D5c", "D5d"] {
         useMethod(subMethod);
-        var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
+        let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.DontMap, .DontMap, .ReturnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .OK, parameters.indices.check);
@@ -1693,10 +1691,9 @@ internal class DEAccountCheck : AccountCheck {
   // MARK: - checksum computation functions.
 
   private class func patternM10H(digits: ArraySlice<UInt16>, modulus: UInt16) -> UInt16 {
-    var weightIndex = 0;
     var sum: UInt16 = 0;
     var lineIndex = 0; // Line (0-3) in the transformation table.
-    for digit in reverse(digits) {
+    for digit in Array(digits.reverse()) {
       sum += m10hTransformationTable[lineIndex][Int(digit)];
       if ++lineIndex == 4 {
         lineIndex = 0;
@@ -1710,7 +1707,7 @@ internal class DEAccountCheck : AccountCheck {
     _ backwards: Bool, _ useDigitSum: Bool, _ compute: (UInt16, UInt16) -> UInt16) -> (sum: UInt16, remainder: UInt16) {
       var weightIndex = 0;
       var sum: UInt16 = 0;
-      let d = backwards ? digits.reverse() : digits;
+      let d = backwards ? Array(digits.reverse()) : Array(digits);
 
       for digit in d {
         if weightIndex == weights.count {
@@ -1772,7 +1769,7 @@ internal class DEAccountCheck : AccountCheck {
   }
 
   private class func pattern2(digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
-    let (sum, remainder) = computeSumRemainder(digits, modulus, weights, backwards, true,
+    let (sum, _) = computeSumRemainder(digits, modulus, weights, backwards, true,
       { return $0 * $1; }
     );
 
@@ -1787,7 +1784,7 @@ internal class DEAccountCheck : AccountCheck {
   }
 
   private class func pattern3(digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
-    var (sum, remainder) = computeSumRemainder(digits, modulus, weights, backwards, true,
+    var (sum, _) = computeSumRemainder(digits, modulus, weights, backwards, true,
       { return $0 * $1; }
     );
 
@@ -1803,7 +1800,7 @@ internal class DEAccountCheck : AccountCheck {
   }
 
   private class func pattern4(digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
-    var (sum, remainder) = computeSumRemainder(digits, modulus, weights, backwards, false,
+    let (_, remainder) = computeSumRemainder(digits, modulus, weights, backwards, false,
       { return ($0 * $1) % 10; /* Only use the LSD. */ }
     );
 
@@ -1814,7 +1811,7 @@ internal class DEAccountCheck : AccountCheck {
   }
 
   private class func pattern5(digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
-    var (sum, remainder) = computeSumRemainder(digits, modulus, weights, backwards, true,
+    let (sum, _) = computeSumRemainder(digits, modulus, weights, backwards, true,
       { return ($0 * $1 + $1) % modulus; }
     );
 
@@ -2077,7 +2074,7 @@ internal class DEAccountCheck : AccountCheck {
         // Documentation is not clear here. Only use 20 with 52's params or with 20's params?
         if let parameters = methodParameters["20"] {
           let workSlice = number[parameters.indices.start...parameters.indices.stop];
-          var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
+          let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
             mappings: [.MapToZero, .MapToZero, .ReturnDifference], useDigitSum: false);
           return number[parameters.indices.check] == checksum;
         } else {
@@ -2112,10 +2109,10 @@ internal class DEAccountCheck : AccountCheck {
     // Compute standard remainder for the given modulus.
     var weightIndex = 0;
     var sum: UInt16 = 0;
-    for digit in reverse(eserAccount) {
+    for digit in Array(eserAccount.reverse()) {
       sum += digit * weights[weightIndex++];
     }
-    var remainder = sum % modulus;
+    let remainder = sum % modulus;
     
     // Find the factor that makes the equation:
     //   (remainder + factor * weight-for-checksum) % 11
@@ -2136,14 +2133,14 @@ internal class DEAccountCheck : AccountCheck {
   /// If so either account or bank code (or both) are replaced according to the mapping and true is returned.
   /// If there's no mapping then false is returned.
   internal class func checkSpecialAccount(inout account: String, inout bankCode: String) -> Bool {
-    if let mappingTuple = mappings[bankCode.toInt()!] {
+    if let mappingTuple = mappings[Int(bankCode)!] {
       // One or more mapping details. Take the first that applies.
       for entry in mappingTuple.details {
         if entry.rangeStart == 0 && entry.account == 0 {
           bankCode = String(entry.bankCode);
           return true;
         } else {
-          if (entry.rangeStart == 0) || (entry.rangeStart...entry.rangeEnd ~= account.toInt()!) {
+          if (entry.rangeStart == 0) || (entry.rangeStart...entry.rangeEnd ~= Int(account)!) {
             if entry.account > 0 {
               account = String(entry.account);
             }
