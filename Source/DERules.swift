@@ -291,6 +291,7 @@ internal class DERules : IBANRules {
       let info = InstituteInfo();
       info.mfiID = "";
       info.bic = entry.bic;
+      info.bankCode = bankCode;
       info.countryCode = "DE";
       info.name = entry.name;
       info.postal = entry.postalCode;

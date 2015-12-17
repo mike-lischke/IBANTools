@@ -59,45 +59,25 @@ import AppKit
 }
 
 public class InstituteInfo: NSObject {
-  public var mfiID: String;
-  public var bic: String;
-  public var countryCode: String;
-  public var name: String;
-  public var box: String;
-  public var address: String;
-  public var postal: String;
-  public var city: String;
-  public var category: String;
-  public var domicile: String;
-  public var headName: String;
-  public var reserve: Bool;
-  public var exempt: Bool;
+  public var mfiID: String = "";
+  public var bic: String = "";
+  public var bankCode: Int = 0;
+  public var countryCode: String = "";
+  public var name: String = "";
+  public var box: String = "";
+  public var address: String = "";
+  public var postal: String = "";
+  public var city: String = "";
+  public var category: String = "";
+  public var domicile: String = "";
+  public var headName: String = "";
+  public var reserve: Bool = false;
+  public var exempt: Bool = false;
 
-  public var hbciVersion: String;   // for DDV + RDH
-  public var pinTanVersion: String; // for HBCI Pin/Tan + RDH
-  public var hostURL: String;       // host URL for DDV + RDH
-  public var pinTanURL: String;
-
-  override init() {
-    mfiID = "";
-    bic = "";
-    countryCode = "";
-    name = "";
-    box = "";
-    address = "";
-    postal = "";
-    city = "";
-    category = "";
-    domicile = "";
-    headName = "";
-    reserve = false;
-    exempt = false;
-
-    hbciVersion = "";   // for DDV + RDH
-    pinTanVersion = ""; // for HBCI Pin/Tan + RDH
-    hostURL = "";       // host URL for DDV + RDH
-    pinTanURL = "";
-  }
+  public var hbciVersion: String = "";   // for DDV + RDH
+  public var pinTanVersion: String = ""; // for HBCI Pin/Tan + RDH
+  public var hostURL: String = "";       // host URL for DDV + RDH
+  public var pinTanURL: String = "";
 }
 
 typealias ConversionResult = (iban: String, result: IBANToolsResult);
