@@ -1,5 +1,5 @@
 /**
-* Copyright (c) 2014, 2015, Mike Lischke. All rights reserved.
+* Copyright (c) 2014, 2016, Mike Lischke. All rights reserved.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License as
@@ -228,7 +228,7 @@ internal class DERules : IBANRules {
           }
 
           // Look for additional info in the ZKA dataset. If an entry can be found for the given
-          // bank code remove it afterwards, so get a list of entries at the end that are not
+          // bank code remove it afterwards, so we get a list of entries at the end that are not
           // in the bank code list.
           if let zkaDetails = zkaData[bankCode] {
             fillZKADetails(&entry, details: zkaDetails);
@@ -236,7 +236,7 @@ internal class DERules : IBANRules {
           }
 
           institutes[bankCode] = entry;
-          bicToBankCode[entry.bic] = bankCode;
+          bicToBankCode[entry.bic] = bankCode; // Note: this is not unique! There can be more than one bank code for a BIC.
         }
       } catch let error as NSError {
         let alert = NSAlert.init(error: error);
@@ -246,7 +246,7 @@ internal class DERules : IBANRules {
 
 
       // Finally go over the remaining entries in the ZKA data and create institutes entries from them.
-      // These may contain entries for deleted or otherwise invalid banks
+      // These may contain entries for deleted or otherwise invalid banks.
       for (bankCode, zkaDetails) in zkaData {
         var entry = BankEntry();
 
@@ -310,6 +310,32 @@ internal class DERules : IBANRules {
     return nil;
   }
 
+  /// Same as instituteDetailsForBIC but use bank codes instead. These allow for more details
+  /// because the ECB list doesn't contain bank codes (and multiple bank codes can stand for the same BIC).
+  override class func instituteDetailsForBankCode(bankCode: String) -> InstituteInfo? {
+    if let bank = Int(bankCode), entry = institutes[bank] {
+      let info = InstituteInfo();
+      info.mfiID = "";
+      info.bic = entry.bic;
+      info.bankCode = bank;
+      info.countryCode = "DE";
+      info.name = entry.name;
+      info.postal = entry.postalCode;
+      info.city = entry.place;
+      info.reserve = false;
+      info.exempt = false;
+
+      info.hbciVersion = entry.hbciVersion;
+      info.pinTanVersion = entry.pinTanVersion;
+      info.hostURL = entry.hostURL;
+      info.pinTanURL = entry.pinTanURL;
+
+      return info;
+    };
+
+    return nil;
+  }
+  
   /// Returns the method to be used for account checks for the specific institute.
   /// May return an empty string if we have no info for the given bank code.
   class func checkSumMethodForInstitute(bankCode: String) -> String {

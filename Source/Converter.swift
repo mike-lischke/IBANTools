@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2014, 2015, Mike Lischke. All rights reserved.
+ * Copyright (c) 2014, 2016, Mike Lischke. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -107,6 +107,10 @@ class IBANRules : NSObject {
   class func instituteDetailsForBIC(bic: String) -> InstituteInfo? {
     return nil;
   }
+
+  class func instituteDetailsForBankCode(bankCode: String) -> InstituteInfo? {
+    return nil;
+  }
 }
 
 class AccountCheck : NSObject {
@@ -159,6 +163,8 @@ public class IBANtools: NSObject {
 
           // The ECB MFI file doesn't contain PIN/TAN URLs or HBCI/FinTS version numbers used
           // by a specific bank, so we ask the country specific classes for that info.
+          // This can potentially return invalid info, if there are multiple bank codes for the given BIC
+          // with different online details (in that case the last loaded record is returned).
           var hbciVersion = "";
           var pinTanVersion = "";
           var hostURL = "";
@@ -257,6 +263,26 @@ public class IBANtools: NSObject {
     return result;
   }
 
+  /// Same as instituteDetailsForBIC, however this one expects a bank code instead.
+  /// Since the ECB does not include bank codes in their data we have to detour to the country specific classes
+  /// (we would have to anyway, for overrides).
+  public class func instituteDetailsForBankCode(bankCode: String) -> InstituteInfo? {
+
+    // Let country rules override ECB data.
+    let bundle = NSBundle(forClass: IBANtools.self);
+    for entry in countryData.keys {
+      let clazz: AnyClass! = bundle.classNamed(entry + "Rules");
+      if clazz != nil {
+        let rulesClass = clazz as! IBANRules.Type;
+        if let result = rulesClass.instituteDetailsForBankCode(bankCode) {
+          return result;
+        }
+      }
+    }
+
+    return nil;
+  }
+  
   /// Validates the given IBAN. Returns true if the number is valid, otherwise false.
   public class func isValidIBAN(iban: String?) -> Bool {
     if iban == nil || (iban!).characters.count < 8 {

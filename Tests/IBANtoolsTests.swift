@@ -1,5 +1,5 @@
 /**
-* Copyright (c) 2014, 2015, Mike Lischke. All rights reserved.
+* Copyright (c) 2014, 2016, Mike Lischke. All rights reserved.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License as
@@ -505,6 +505,27 @@ class IBANtoolsTests: XCTestCase {
     return !expected.isAvailable;
   }
 
+  func bankInfoTest3(bankCode: String, _ expected: (isAvailable: Bool, country: String, name: String, city: String, address: String)) -> Bool {
+    if let info = IBANtools.instituteDetailsForBankCode(bankCode) {
+      if !expected.isAvailable {
+        return false;
+      }
+      return info.countryCode == expected.country && info.name == expected.name && info.city == expected.city
+        && info.address == expected.address;
+    }
+    return !expected.isAvailable;
+  }
+
+  func bankInfoTest4(bankCode: String, _ expected: (isAvailable: Bool, hbciVersion: String, pinTanVersion: String, url: String)) -> Bool {
+    if let info = IBANtools.instituteDetailsForBankCode(bankCode) {
+      if !expected.isAvailable {
+        return false;
+      }
+      return info.hbciVersion == expected.hbciVersion && info.pinTanVersion == expected.pinTanVersion && info.pinTanURL == expected.url;
+    }
+    return !expected.isAvailable;
+  }
+
   func testBankInfo() {
     XCTAssert(bankInfoTest("CKCNIE21", (true, "IE", "St. Canice's Kilkenny Credit Union Limited", "Co Kilkenny", "78 High Street, Kilkenny,")));
     XCTAssert(bankInfoTest("BCDMITM1XXX", (true, "IT", "BANQUE CHAABI DU MAROC", "MILANO", "VIALE SAURO NAZARIO, 14")));
@@ -515,5 +536,9 @@ class IBANtoolsTests: XCTestCase {
     let (bic, _): (String, IBANToolsResult) = IBANtools.bicForBankCode("30060601", countryCode: "DE");
     XCTAssert(bankInfoTest(bic, (true, "DE", "Deutsche Apotheker- und Ärztebank eG", "Düsseldorf", "")));
     XCTAssert(bankInfoTest2(bic, (true, "300", "300", "https://hbci-pintan.gad.de/cgi-bin/hbciservlet")));
+
+    XCTAssert(bankInfoTest3("30060601", (true, "DE", "Deutsche Apotheker- und Ärztebank eG", "Düsseldorf", "")));
+    XCTAssert(bankInfoTest4("30060601", (true, "300", "300", "https://hbci-pintan.gad.de/cgi-bin/hbciservlet")));
+
   }
 }
