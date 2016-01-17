@@ -136,7 +136,7 @@ internal class DERules : IBANRules {
       entry.hbciVersion = version + "0";
     }
 
-    version = details[21];
+    version = details[24];
     if version.characters.count > 0 {
       // Special format here. So do a simple mapping of the few possible values.
       if version == "FinTS V3.0" {
@@ -152,7 +152,7 @@ internal class DERules : IBANRules {
     }
 
     entry.hostURL = details[6];
-    entry.pinTanURL = details[20];
+    entry.pinTanURL = details[23];
 
     // Usually the ZKA file has preciser bank names, so we use them if available.
     if details[2].characters.count > 0 {

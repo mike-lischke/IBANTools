@@ -4341,4 +4341,4 @@ Nr.;BLZ;Institut;Ort;RZ;Organisation;HBCI-Zugang DNS;HBCI- Zugang     IP-Adresse
 4341;87096074;Freiberger Bank;Freiberg, Sachs;Fiducia & GAD IT AG;BVR;hbci01.fiducia.de;;3.0;;;;;;;;ja;;ja;ja;;;;https://hbci11.fiducia.de/cgi-bin/hbciservlet;FinTS V3.0;18.12.2009;;;;;
 4342;87096124;Volksbank;Mittweida;Fiducia & GAD IT AG;BVR;hbci01.fiducia.de;;3.0;;;;;;;;ja;;ja;ja;;;;https://hbci11.fiducia.de/cgi-bin/hbciservlet;FinTS V3.0;18.12.2009;;;;;
 4343;87096214;Volksbank Chemnitz;Chemnitz, Sachs;Fiducia & GAD IT AG;BVR;hbci01.fiducia.de;;3.0;;;;;;;;ja;;ja;ja;;;;https://hbci11.fiducia.de/cgi-bin/hbciservlet;FinTS V3.0;18.12.2009;;;;;
-4343;50010517;ING-Diba;Frankfurt am Main;eigenes Rechenzentrum;BdB;;;;;;;;;;;;;;;;;;https://fints.ing-diba.de/fints;HBCI 2.2 Erweiterung PIN/TAN V1.01;10.04.2015;;;;;
+4344;50010517;ING-Diba;Frankfurt am Main;eigenes Rechenzentrum;BdB;;;;;;;;;;;;;;;;;;https://fints.ing-diba.de/fints;HBCI 2.2 Erweiterung PIN/TAN V1.01;10.04.2015;;;;;

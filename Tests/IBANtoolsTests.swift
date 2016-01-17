@@ -531,7 +531,7 @@ class IBANtoolsTests: XCTestCase {
     XCTAssert(bankInfoTest("BCDMITM1XXX", (true, "IT", "BANQUE CHAABI DU MAROC", "MILANO", "VIALE SAURO NAZARIO, 14")));
 
     XCTAssert(bankInfoTest2("HYVEDEMM466", (true, "300", "300", "https://hbci-01.hypovereinsbank.de/bank/hbci")));
-    XCTAssert(bankInfoTest2("WELADED1EMR", (true, "220", "plus", "https://hbci-pintan-rl.s-hbci.de/PinTanServlet")));
+    XCTAssert(bankInfoTest2("WELADED1EMR", (true, "300", "300", "https://banking-rl2.s-fints-pt-rl.de/fints30")));
 
     let (bic, _): (String, IBANToolsResult) = IBANtools.bicForBankCode("30060601", countryCode: "DE");
     XCTAssert(bankInfoTest(bic, (true, "DE", "Deutsche Apotheker- und Ärztebank eG", "Düsseldorf", "")));
