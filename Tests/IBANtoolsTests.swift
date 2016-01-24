@@ -52,7 +52,7 @@ class IBANtoolsTests: XCTestCase {
     XCTAssert(IBANtools.isValidIBAN("CM2110003001000500000605306"));  // Cameroon
     XCTAssert(IBANtools.isValidIBAN("CV64000300004547069110176"));    // Cape Verde
     XCTAssert(IBANtools.isValidIBAN("CR0515202001026284066"));        // Costa Rica
-    XCTAssert(IBANtools.isValidIBAN("HR1210010051863000160"));        // Croatia
+    XCTAssert(IBANtools.isValidIBAN("HR 12 10010051863000160"));        // Croatia
     XCTAssert(IBANtools.isValidIBAN("CY17002001280000001200527600")); // Cyprus
     XCTAssert(IBANtools.isValidIBAN("CZ6508000000192000145399"));     // Czech Republic
     XCTAssert(IBANtools.isValidIBAN("DK5000400440116243"));           // Denmark
@@ -65,8 +65,9 @@ class IBANtoolsTests: XCTestCase {
     XCTAssert(IBANtools.isValidIBAN("GE29NB0000000101904917"));       // Georgia
     XCTAssert(IBANtools.isValidIBAN("DE89370400440532013000"));       // Germany
     XCTAssert(IBANtools.isValidIBAN("GI75NWBK000000007099453"));      // Gibraltar
-    XCTAssert(IBANtools.isValidIBAN("GR1601101250000000012300695"));  // Greece
-    XCTAssert(IBANtools.isValidIBAN("GL8964710001000206"));           // Greenland
+    XCTAssert(IBANtools.isValidIBAN("G R 1 6 0 1 1 0 1 2 5 0 0 0 0 0 0 0 0 1 2 3 0 0 6 9 5   "));  // Greece
+    XCTAssert(IBANtools.isValidIBAN("GL        89              64710001000206"));           // Greenland
+    XCTAssertFalse(IBANtools.isValidIBAN("GL        88              64710001000206"));
     XCTAssert(IBANtools.isValidIBAN("HU42117730161111101800000000")); // Hungary
     XCTAssert(IBANtools.isValidIBAN("IS140159260076545510730339"));   // Iceland
     XCTAssert(IBANtools.isValidIBAN("IR580540105180021273113007"));   // Iran

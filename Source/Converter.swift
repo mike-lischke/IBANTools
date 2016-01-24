@@ -284,7 +284,8 @@ public class IBANtools: NSObject {
   }
   
   /// Validates the given IBAN. Returns true if the number is valid, otherwise false.
-  public class func isValidIBAN(iban: String?) -> Bool {
+  public class func isValidIBAN(var iban: String?) -> Bool {
+    iban = iban?.stringByReplacingOccurrencesOfString(" ", withString: "");
     if iban == nil || (iban!).characters.count < 8 {
         return false;
     }
