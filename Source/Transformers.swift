@@ -20,7 +20,8 @@
 import Foundation
 
 // Converts an IBAN to human readable form and back.
-@objc public class IBANTransformer : NSValueTransformer {
+@objc(IBANTransformer)
+public class IBANTransformer : NSValueTransformer {
 
   public var countryCode = "de";
 
@@ -29,7 +30,7 @@ import Foundation
   }
 
   public override func transformedValue(value: AnyObject?) -> AnyObject? {
-    if let data = countryData[countryCode.lowercaseString] {
+    if let data = countryData[countryCode.uppercaseString] {
       let requiredLength = 4 + data.accountLength + data.bankCodeLength;
       if let iban = value as? String where iban.characters.count >= requiredLength {
         return iban.substringWithRange(Range(start: iban.startIndex, end: iban.startIndex.advancedBy(2))) + " " + // Country code.
