@@ -45,6 +45,12 @@ internal class DEAccountCheck : AccountCheck {
   );
 
   // TODO: this data should also be in a file (so we can update it without recompilation).
+  // Structure is as follows:
+  // - For each method we have a set of parameters by default (e.g. 01, 07).
+  // - Some methods have an alternative method. For those there is a XXb variant (e.g. 13b, 26b).
+  // - Some methods have even more alternatives with complex interaction. For those we have no default params (the default set has e.g. no modulus value)
+  //   but instead individual methods (e.g. 51a, 51b etc.).
+  // - Some methods use other methods depending on certain conditions. They are handled manually and have no default values here (e.g. A6, B3).
   static private var methodParameters: [String: MethodParameters] = [
     "00": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
     "01": (10, [3, 7, 1, 3, 7, 1, 3, 7, 1], (0, 8, 9)),
@@ -95,7 +101,8 @@ internal class DEAccountCheck : AccountCheck {
     "46": (11, [2, 3, 4, 5, 6], (2, 6, 7)),
     "47": (11, [2, 3, 4, 5, 6], (3, 7, 8)),
     "48": (11, [2, 3, 4, 5, 6, 7], (2, 7, 8)),
-    "49": (0, [], (0, 8, 9)),
+    "49": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
+    "49b": (10, [3, 7, 1, 3, 7, 1, 3, 7, 1], (0, 8, 9)),
     "50": (11, [2, 3, 4, 5, 6, 7], (0, 5, 6)),
     "50b": (11, [2, 3, 4, 5, 6, 7], (3, 8, 9)),
     "51": (0, [], (0, 8, 9)),
@@ -162,7 +169,7 @@ internal class DEAccountCheck : AccountCheck {
     "86": (0, [], (0, 8, 9)),
     "86a": (10, [2, 1, 2, 1, 2, 1], (0, 8, 9)),
     "86b": (11, [2, 3, 4, 5, 6, 7], (0, 8, 9)),
-    "87": (0, [], (0, 8, 9)),
+    "87": (0, [], (0, 8, 9)), // Manual handling of sub methods.
     "87b": (11, [2, 3, 4, 5, 6], (4, 8, 9)),
     "87c": (7, [2, 3, 4, 5, 6], (4, 8, 9)),
     "88": (11, [2, 3, 4, 5, 6, 7], (0, 8, 9)),
@@ -206,7 +213,7 @@ internal class DEAccountCheck : AccountCheck {
     "A4c": (11, [2, 3, 4, 5, 6, 0, 0, 0, 0], (0, 8, 9)),
     "A5": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
     "A5b": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
-    "A6": (0, [], (0, 8, 9)),
+    "A6": (0, [], (0, 8, 9)), // Manual handling of sub methods.
     "A7": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
     "A8": (11, [2, 3, 4, 5, 6, 7], (0, 8, 9)),
     "A8b": (10, [2, 1, 2, 1, 2, 1], (0, 8, 9)),
@@ -215,9 +222,9 @@ internal class DEAccountCheck : AccountCheck {
     "B0": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
     "B1": (10, [7, 3, 1, 7, 3, 1, 7, 3, 1], (0, 8, 9)),
     "B1b": (10, [3, 7, 1, 3, 7, 1, 3, 7, 1], (0, 8, 9)),
-    "B2": (0, [], (0, 8, 9)),
-    "B3": (0, [], (0, 8, 9)),
-    "B4": (0, [], (0, 8, 9)),
+    "B2": (0, [], (0, 8, 9)), // Manual handling of sub methods.
+    "B3": (0, [], (0, 8, 9)), // Manual handling of sub methods.
+    "B4": (0, [], (0, 8, 9)), // Manual handling of sub methods.
     "B5": (10, [7, 3, 1 ,7 , 3, 1, 7, 3, 1], (0, 8, 9)),
     "B5b": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
     "B6": (11, [2, 3, 4, 5, 6, 7, 8, 9, 3], (0, 8, 9)),
@@ -233,9 +240,9 @@ internal class DEAccountCheck : AccountCheck {
     "C1b": (11, [1, 2, 1, 2, 1, 2, 1, 2, 1], (0, 8, 9)),
     "C2": (10, [3, 1, 3, 1, 3, 1, 3, 1, 3], (0, 8, 9)),
     "C2b": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
-    "C3": (0, [], (0, 8, 9)),
-    "C4": (0, [], (0, 8, 9)),
-    "C5": (0, [], (0, 8, 9)),
+    "C3": (0, [], (0, 8, 9)), // Manual handling of sub methods.
+    "C4": (0, [], (0, 8, 9)), // Manual handling of sub methods.
+    "C5": (0, [], (0, 8, 9)), // Manual handling of sub methods.
     "C6": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2], (1, 8, 9)),
     "C7": (10, [2, 1, 2, 1, 2, 1], (1, 6, 7)),
     "C7a": (10, [2, 1, 2, 1, 2, 1], (3, 8, 9)),
@@ -245,13 +252,13 @@ internal class DEAccountCheck : AccountCheck {
     "C8c": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
     "C9": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
     "C9b": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
-    "D0": (0, [], (0, 8, 9)),
-    "D1": (0, [], (0, 8, 9)),
+    "D0": (0, [], (0, 8, 9)), // Manual handling of sub methods.
+    "D1": (0, [], (0, 8, 9)), // Manual handling of sub methods.
     "D2": (11, [2, 3, 4, 5, 6, 7, 2, 3, 4], (0, 8, 9)),
     "D2b": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
     "D3": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
-    "D4": (0, [], (0, 8, 9)),
-    "D5": (0, [], (0, 8, 9)),
+    "D4": (0, [], (0, 8, 9)), // Manual handling of sub methods.
+    "D5": (0, [], (0, 8, 9)), // Manual handling of sub methods.
     "D5a": (11, [2, 3, 4, 5, 6, 7, 8, 0, 0], (0, 8, 9)),
     "D5b": (11, [2, 3, 4, 5, 6, 7, 0, 0, 0], (0, 8, 9)),
     "D5c": (7, [2, 3, 4, 5, 6, 7, 0, 0, 0], (0, 8, 9)),
@@ -259,8 +266,8 @@ internal class DEAccountCheck : AccountCheck {
     "D6": (11, [2, 3, 4, 5, 6, 7, 8, 9, 10], (0, 8, 9)),
     "D6b": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
     "D7": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
-    "D8": (0, [], (0, 8, 9)),
-    "D9": (0, [], (0, 8, 9)),
+    "D8": (0, [], (0, 8, 9)), // Manual handling of sub methods.
+    "D9": (0, [], (0, 8, 9)), // Manual handling of sub methods.
     "E0": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
     "E1": (11, [1, 2, 3, 4, 5, 6, 11, 10, 9], (0, 8, 9)),
   ];
@@ -696,7 +703,6 @@ internal class DEAccountCheck : AccountCheck {
 
     case "82":
       if number10[2] == 9 && number10[3] == 9 {
-        method = "10";
         useMethod("10");
       } else {
         method = "33"; // No further parameter updates. We use those from method 82.
@@ -1089,7 +1095,7 @@ internal class DEAccountCheck : AccountCheck {
         let valid = expectedCheckSum == checksum;
         return (valid, valid ? .OK : .BadAccount, parameters.indices.check);
 
-      case 32...39, 41...49, 52...54, 56...60, 62...63, 67...69, 71, 72, 83...87, 89, 90, 92,
+      case 32...39, 41...49, 52...54, 56...60, 62...63, 67...69, 71, 72, 83...86, 89, 90, 92,
            93, 96...98: // Variant 2.
         // The checksum is in digit 2 which must not be included in the computation.
         // But instead we have to include digit 9.
@@ -1115,8 +1121,11 @@ internal class DEAccountCheck : AccountCheck {
       }
 
     case "61", "62", "63", "C7":
-      let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
+      var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.DontMap, .DontMap, .ReturnDifference], backwards: true, useDigitSum: true);
+      if checksum == 10 {
+        checksum = 0;
+      }
       if expectedCheckSum == checksum {
         return (true, .OK, parameters.indices.check);
       }
@@ -1403,22 +1412,6 @@ internal class DEAccountCheck : AccountCheck {
         return defaultFalseResult;
       }
 
-    case "A6":
-      if number10[2] == 9 {
-        let valid = method51(number10);
-        return (valid, valid ? .OK : .BadAccount, parameters.indices.check);
-      }
-
-      let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.MapToZero, .DontMap, .ReturnDifference]);
-      if expectedCheckSum == checksum {
-        return (true, .OK, parameters.indices.check);
-      }
-
-      if number10[0] == 9 {
-        return defaultFalseResult;
-      }
-
     case "B5":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference], useDigitSum: false);
@@ -1645,7 +1638,7 @@ internal class DEAccountCheck : AccountCheck {
       let valid = expectedCheckSum == checksum;
       return (valid, valid ? .OK : .BadAccount, parameters.indices.check);
 
-    case "A7", "B1":
+    case "49", "A7", "B1":
       useMethod(method + "b");
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
         mappings: [.MapToZero, .DontMap, .ReturnDifference], useDigitSum: false);

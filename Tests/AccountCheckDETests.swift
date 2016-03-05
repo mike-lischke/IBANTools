@@ -319,16 +319,16 @@ class AccountCheckDETests: XCTestCase {
     // 60 - no test case yet
 
     // 61
-    XCTAssertFalse(checkAccount("0", bankCode: "25621327"), "Rule 61.0");
+    XCTAssert(checkAccount("0", bankCode: "25621327"), "Rule 61.0");
     XCTAssert(checkAccount("2 0 6 3 0 9 9 2 0 0", bankCode: "25621327"), "Rule 61.1");
     XCTAssert(checkAccount("0 2 6 0 7 6 0 2 8 2", bankCode: "25621327"), "Rule 61.2");
 
     // 62
-    XCTAssertFalse(checkAccount("0", bankCode: "11111116"), "Rule 62.0");
+    XCTAssert(checkAccount("0", bankCode: "11111116"), "Rule 62.0");
     XCTAssert(checkAccount("5 0 2 9 0 7 6 7 0 1", bankCode: "11111116"), "Rule 62.1");
 
     // 63
-    XCTAssertFalse(checkAccount("0", bankCode: "25770024"), "Rule 63.0");
+    XCTAssert(checkAccount("0", bankCode: "25770024"), "Rule 63.0");
     XCTAssert(checkAccount("1 2 3 4 5 6 6 0 0", bankCode: "25770024"), "Rule 63.1");
     XCTAssert(checkAccount("0 0 0 1 2 3 4 5 6 6", bankCode: "25770024"), "Rule 63.2");
 
