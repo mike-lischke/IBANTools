@@ -920,7 +920,7 @@ internal class DEAccountCheck : AccountCheck {
     // The method handler. This is for the first variants in each method only.
     // There's another switch for those method that may get a second chance.
     switch method {
-    case "00", "08", "13", "30", "41", "45", "49", "59", "65", "67", "72", "74", "78", "79",
+    case "00", "08", "13", "30", "41", "45", "49", "59", "60", "65", "67", "72", "74", "78", "79",
       "80", "94", "A1", "A2", "A3", "A7", "C6", "C9":
       if method == "80" && number10[2] == 9 {
         return (method51(number10), .OK, parameters.indices.check);
@@ -933,7 +933,7 @@ internal class DEAccountCheck : AccountCheck {
       }
 
     case "06", "10", "11", "15", "19", "20", "26", "28", "32", "33", "34", "36", "37", "38", "39",
-    "40", "42", "44", "46", "47", "48", "50", "55", "60", "70", "81", "88", "95", "96", "99",
+    "40", "42", "44", "46", "47", "48", "50", "55", "70", "81", "88", "95", "96", "99",
     "A0", "A8", "B0", "B6", "B8":
       if (method == "81" || method == "A8") && number10[2] == 9 {
         return (method51(number10), .OK, parameters.indices.check);
@@ -1804,7 +1804,7 @@ internal class DEAccountCheck : AccountCheck {
   }
 
   private class func pattern5(digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
-    let (sum, _) = computeSumRemainder(digits, modulus, weights, backwards, true,
+    let (sum, _) = computeSumRemainder(digits, modulus, weights, backwards, false,
       { return ($0 * $1 + $1) % modulus; }
     );
 
@@ -1821,7 +1821,7 @@ internal class DEAccountCheck : AccountCheck {
     if let parameters = methodParameters["27"] {
       let workSlice = number10[parameters.indices.start...parameters.indices.stop];
       let expectedCheckSum = number10[parameters.indices.check];
-      if accountAsInt < 1000000 { // Simple checksum computation only for accounts less than 1 000 000.
+      if accountAsInt < 1_000_000_000 { // Simple checksum computation only for accounts less than 1 000 000 000.
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
           mappings: [.MapToZero, .DontMap, .ReturnDifference]);
         if expectedCheckSum == checksum {

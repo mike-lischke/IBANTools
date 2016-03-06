@@ -206,10 +206,6 @@ class IBANtoolsTests: XCTestCase {
       let expected = entry.code + entry.checksum + bankCodeNumber + accountNumber;
       XCTAssert(testAndCompare(entry.account, entry.bank, entry.code, (expected, .DefaultIBAN)), "Default \(counter++)");
     }
-
-    XCTAssert(testAndCompare("380900175", "76050101", "de", ("DE40760501010380900175", .DefaultIBAN), true));
-    XCTAssert(testAndCompare("021050000", "20070000", "de", ("DE58200700000021050000", .DefaultIBAN), true));
-    XCTAssert(testAndCompare("700209000", "10070000", "de", ("DE43100700000700209000", .DefaultIBAN), true));
   }
 
   func ibanToBicTest(iban: String, _ expected: (bic: String, result: IBANToolsResult)) -> Bool {

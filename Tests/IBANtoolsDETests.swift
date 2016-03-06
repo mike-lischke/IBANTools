@@ -71,7 +71,7 @@ class IBANtoolsDETests: XCTestCase {
       return result;
   }
 
-  func testIBANs() {
+  func testIBANsByRule() {
 
     // Rule 0000. Uses the default IBAN conversion rule. There are other tests for the default rule.
     XCTAssert(testAndCompare("12345", "10010424", "de", ("DE77100104240000012345", .DefaultIBAN)), "1");
@@ -859,5 +859,18 @@ class IBANtoolsDETests: XCTestCase {
 
     // Rule 0057.
     XCTAssert(testAndCompare("9988 7766 55", "508 109 00",  "de", ("DE97660102009988776655", .DefaultIBAN), true), "57.1");
+  }
+
+  func testIBANGeneral() {
+    XCTAssert(testAndCompare("380900175", "76050101", "de", ("DE40760501010380900175", .DefaultIBAN), true));
+    XCTAssert(testAndCompare("021050000", "20070000", "de", ("DE58200700000021050000", .DefaultIBAN), true));
+    XCTAssert(testAndCompare("700209000", "10070000", "de", ("DE43100700000700209000", .DefaultIBAN), true));
+
+    XCTAssert(testAndCompare("115241904", "86010090", "de", ("DE53860100900115241904", .DefaultIBAN), true));
+    XCTAssert(testAndCompare("846419605", "50010060", "de", ("DE03500100600846419605", .DefaultIBAN), true));
+    XCTAssert(testAndCompare("363901643", "60010070", "de", ("DE49600100700363901643", .DefaultIBAN), true));
+    XCTAssert(testAndCompare("0010119717", "50021000", "de", ("DE35500210000010119717", .DefaultIBAN), true));
+    XCTAssert(testAndCompare("0101412666", "25050000", "de", ("DE30250500000101412666", .DefaultIBAN), true));
+    XCTAssert(testAndCompare("9305308", "25010030", "de", ("DE70250100300009305308", .DefaultIBAN), true));
   }
 }
