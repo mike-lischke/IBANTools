@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016, Mike Lischke. All rights reserved.
+ * Copyright (c) 2016, 2017, Mike Lischke. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -21,30 +21,30 @@ import Foundation
 
 // Converts an IBAN to human readable form and back.
 @objc(IBANTransformer)
-public class IBANTransformer : NSValueTransformer {
+open class IBANTransformer : ValueTransformer {
 
-  public var countryCode = "de";
+  open var countryCode = "de";
 
-  public static override func allowsReverseTransformation() -> Bool {
+  open static override func allowsReverseTransformation() -> Bool {
     return true;
   }
 
-  public override func transformedValue(value: AnyObject?) -> AnyObject? {
-    if let data = countryData[countryCode.uppercaseString] {
+  open override func transformedValue(_ value: Any?) -> Any? {
+    if let data = countryData[countryCode.uppercased()] {
       let requiredLength = 4 + data.accountLength + data.bankCodeLength;
-      if let iban = value as? String where iban.characters.count >= requiredLength {
-        return iban.substringWithRange(Range(start: iban.startIndex, end: iban.startIndex.advancedBy(2))) + " " + // Country code.
-          iban.substringWithRange(Range(start: iban.startIndex.advancedBy(2), end: iban.startIndex.advancedBy(4))) + " " + // Check sum.
-          iban.substringWithRange(Range(start: iban.startIndex.advancedBy(4), end: iban.startIndex.advancedBy(data.accountLength))) + " " + // Account number.
-          iban.substringFromIndex(iban.startIndex.advancedBy(data.accountLength + 4)); // The rest.
+      if let iban = value as? String, iban.characters.count >= requiredLength {
+        return iban.substring(with: (iban.startIndex ..< iban.characters.index(iban.startIndex, offsetBy: 2))) + " " + // Country code.
+          iban.substring(with: (iban.characters.index(iban.startIndex, offsetBy: 2) ..< iban.characters.index(iban.startIndex, offsetBy: 4))) + " " + // Check sum.
+          iban.substring(with: (iban.characters.index(iban.startIndex, offsetBy: 4) ..< iban.characters.index(iban.startIndex, offsetBy: data.accountLength))) + " " + // Account number.
+          iban.substring(from: iban.characters.index(iban.startIndex, offsetBy: data.accountLength + 4)); // The rest.
       }
     }
     return value;
   }
 
-  public override func reverseTransformedValue(value: AnyObject?) -> AnyObject? {
+  open override func reverseTransformedValue(_ value: Any?) -> Any? {
     if let iban = value as? String {
-      return iban.stringByReplacingOccurrencesOfString(" ", withString: "");
+      return iban.replacingOccurrences(of: " ", with: "");
     }
     return value;
   }

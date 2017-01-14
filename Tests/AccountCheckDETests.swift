@@ -1,5 +1,5 @@
 /**
-* Copyright (c) 2014, 2015, Mike Lischke. All rights reserved.
+* Copyright (c) 2014, 2017, Mike Lischke. All rights reserved.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License as
@@ -30,7 +30,8 @@ class AccountCheckDETests: XCTestCase {
     super.tearDown()
   }
 
-  func checkAccount(var account: String, var bankCode: String) -> Bool {
+  func checkAccount(_ account: String, bankCode: String) -> Bool {
+    var account = account, bankCode = bankCode
     return IBANtools.isValidAccount(&account, bankCode: &bankCode, countryCode: "de").valid;
   }
 

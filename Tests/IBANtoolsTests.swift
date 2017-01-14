@@ -1,5 +1,5 @@
 /**
-* Copyright (c) 2014, 2016, Mike Lischke. All rights reserved.
+* Copyright (c) 2014, 2017, Mike Lischke. All rights reserved.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License as
@@ -179,17 +179,18 @@ class IBANtoolsTests: XCTestCase {
     ("TR", "00061",       "00519786457841326",    "33")
   ];
 
-  func testAndCompare(var account: String, var _ bank: String, _ country: String,
+  func testAndCompare(_ account: String, _ bank: String, _ country: String,
     _ expected: (String, IBANToolsResult), _ checkAccount: Bool = true) -> Bool {
+    var account = account, bank = bank
     let result = IBANtools.convertToIBAN(&account, bankCode: &bank, countryCode: country, validateAccount: checkAccount);
     return result.0 == expected.0 && result.1 == expected.1;
   }
   
   func testIBANConversion() {
-    XCTAssert(testAndCompare("", "12345", "xy", ("", .WrongValue)),  "Default 1");
-    XCTAssert(testAndCompare("12345", "", "xy", ("", .WrongValue)), "Default 2");
-    XCTAssert(testAndCompare("12345", "12345", "", ("", .WrongValue)), "Default 3");
-    XCTAssert(testAndCompare("12345", "12345", "µ", ("", .WrongValue), false), "Default 4");
+    XCTAssert(testAndCompare("", "12345", "xy", ("", .wrongValue)),  "Default 1");
+    XCTAssert(testAndCompare("12345", "", "xy", ("", .wrongValue)), "Default 2");
+    XCTAssert(testAndCompare("12345", "12345", "", ("", .wrongValue)), "Default 3");
+    XCTAssert(testAndCompare("12345", "12345", "µ", ("", .wrongValue), false), "Default 4");
 
     var counter = 5;
     for entry in testData {
@@ -197,294 +198,295 @@ class IBANtoolsTests: XCTestCase {
       var bankCodeNumber = entry.bank;
       if let details = countryData[entry.code] {
         if accountNumber.characters.count < details.accountLength {
-          accountNumber = String(count: details.accountLength - accountNumber.characters.count, repeatedValue: "0" as Character) + accountNumber;
+          accountNumber = String(repeating: "0", count: details.accountLength - accountNumber.characters.count) + accountNumber;
         }
         if bankCodeNumber.characters.count < details.bankCodeLength {
-          bankCodeNumber = String(count: details.bankCodeLength - bankCodeNumber.characters.count, repeatedValue: "0" as Character) + bankCodeNumber;
+          bankCodeNumber = String(repeating: "0", count: details.bankCodeLength - bankCodeNumber.characters.count) + bankCodeNumber;
         }
       }
       let expected = entry.code + entry.checksum + bankCodeNumber + accountNumber;
-      XCTAssert(testAndCompare(entry.account, entry.bank, entry.code, (expected, .DefaultIBAN)), "Default \(counter++)");
+      XCTAssert(testAndCompare(entry.account, entry.bank, entry.code, (expected, .defaultIBAN)), "Default \(counter)");
+      counter += 1;
     }
   }
 
-  func ibanToBicTest(iban: String, _ expected: (bic: String, result: IBANToolsResult)) -> Bool {
+  func ibanToBicTest(_ iban: String, _ expected: (bic: String, result: IBANToolsResult)) -> Bool {
     let result: (bic: String, result: IBANToolsResult) = IBANtools.bicForIBAN(iban);
     return result.bic == expected.bic && result.result == expected.result;
   }
 
-  func bankCodeToBicTest(bankCode: String, countryCode: String, _ expected: (bic: String, result: IBANToolsResult)) -> Bool {
+  func bankCodeToBicTest(_ bankCode: String, countryCode: String, _ expected: (bic: String, result: IBANToolsResult)) -> Bool {
     let (bic, result): (String, IBANToolsResult) = IBANtools.bicForBankCode(bankCode, countryCode: countryCode);
     return bic == expected.bic && result == expected.result;
   }
 
   func testBICDetermination() {
     // Currently BICs can only be determined for german accounts.
-    XCTAssert(ibanToBicTest("VG96VPVG0000012345678901", ("", IBANToolsResult.NoBIC)));
+    XCTAssert(ibanToBicTest("VG96VPVG0000012345678901", ("", IBANToolsResult.noBIC)));
 
-    XCTAssert(ibanToBicTest("DE32265800700732502200", ("DRESDEFF265", .OK)));
-    XCTAssert(ibanToBicTest("DE32265800700732502200", ("DRESDEFF265", .OK)));
-    XCTAssert(ibanToBicTest("DE60265800708732502200", ("DRESDEFF265", .OK)));
-    XCTAssert(ibanToBicTest("DE37265800704820379900", ("DRESDEFF265", .OK)));
-    XCTAssert(ibanToBicTest("DE70500800004814706100", ("DRESDEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE77500800006814706100", ("DRESDEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE32500800007814706100", ("DRESDEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE84500800008814706100", ("DRESDEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE39500800009814706100", ("DRESDEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE42500800000023165400", ("DRESDEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE42500800000023165400", ("DRESDEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE21500800000004350300", ("DRESDEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE21500800000004350300", ("DRESDEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE49500894000000526400", ("DRESDEFFI01", .OK)));
-    XCTAssert(ibanToBicTest("DE73100800000998761700", ("DRESDEFF100", .OK)));
-    XCTAssert(ibanToBicTest("DE10265800709902100000", ("DRESDEFF265", .OK)));
-    XCTAssert(ibanToBicTest("DE24505400280421738600", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE10720400460111198800", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE46505400280420086100", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE13505400280421573704", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE26505400280421679200", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE63654400870130023500", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE29230400220010441400", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE27120400000040050700", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE73230400220010133700", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE77230400220010503101", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE12120400000052065002", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE97500400000930125001", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE89700400410930125000", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE59500400000930125006", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE81200411110130023500", ("COBADEHDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE69370800400215022000", ("DRESDEFF370", .OK)));
-    XCTAssert(ibanToBicTest("DE46500400000311011100", ("COBADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE16150800004241770400", ("DRESDEFF150", .OK)));
-    XCTAssert(ibanToBicTest("DE41120800000070548200", ("DRESDEFF120", .OK)));
-    XCTAssert(ibanToBicTest("DE95210800500118650400", ("DRESDEFF210", .OK)));
-    XCTAssert(ibanToBicTest("DE58210800500001186103", ("DRESDEFF210", .OK)));
-    XCTAssert(ibanToBicTest("DE80500202000000038000", ("BHFBDEFF500", .OK)));
-    XCTAssert(ibanToBicTest("DE46500202000030009963", ("BHFBDEFF500", .OK)));
-    XCTAssert(ibanToBicTest("DE02500202000040033086", ("BHFBDEFF500", .OK)));
-    XCTAssert(ibanToBicTest("DE55500202000050017409", ("BHFBDEFF500", .OK)));
-    XCTAssert(ibanToBicTest("DE38500202000055036107", ("BHFBDEFF500", .OK)));
-    XCTAssert(ibanToBicTest("DE98500202000070049754", ("BHFBDEFF500", .OK)));
-    XCTAssert(ibanToBicTest("DE03683515573047232594", ("SOLADES1SFH", .OK)));
-    XCTAssert(ibanToBicTest("DE10683515570016005845", ("SOLADES1SFH", .OK)));
-    XCTAssert(ibanToBicTest("DE95500500005000002096", ("HELADEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE15300500000000060624", ("WELADEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE82501203830020475000", ("DELBDE33XXX", .OK)));
-    XCTAssert(ibanToBicTest("DE82501203830020475000", ("DELBDE33XXX", .OK)));
-    XCTAssert(ibanToBicTest("DE82501203830020475000", ("DELBDE33XXX", .OK)));
-    XCTAssert(ibanToBicTest("DE82501203830020475000", ("DELBDE33XXX", .OK)));
-    XCTAssert(ibanToBicTest("DE81360200300000305200", ("NBAGDE3EXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE03360200300000900826", ("NBAGDE3EXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE71360200300000705020", ("NBAGDE3EXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE18360200300009197354", ("NBAGDE3EXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE69250501800000017095", ("SPKHDE2HXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE77545201946790149813", ("HYVEDEMM483", .OK)));
-    XCTAssert(ibanToBicTest("DE70762200731210100047", ("HYVEDEMM419", .OK)));
-    XCTAssert(ibanToBicTest("DE70762200731210100047", ("HYVEDEMM419", .OK)));
-    XCTAssert(ibanToBicTest("DE70762200731210100047", ("HYVEDEMM419", .OK)));
-    XCTAssert(ibanToBicTest("DE70762200731210100047", ("HYVEDEMM419", .OK)));
-    XCTAssert(ibanToBicTest("DE92660202861457032621", ("HYVEDEMM475", .OK)));
-    XCTAssert(ibanToBicTest("DE70762200731210100047", ("HYVEDEMM419", .OK)));
-    XCTAssert(ibanToBicTest("DE92660202861457032621", ("HYVEDEMM475", .OK)));
-    XCTAssert(ibanToBicTest("DE06710221823200000012", ("HYVEDEMM453", .OK)));
-    XCTAssert(ibanToBicTest("DE07100208900005951950", ("HYVEDEMM488", .OK)));
-    XCTAssert(ibanToBicTest("DE76700202702950219435", ("HYVEDEMMXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE92660202861457032621", ("HYVEDEMM475", .OK)));
-    XCTAssert(ibanToBicTest("DE55700202700000000897", ("HYVEDEMMXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE36700202700847321750", ("HYVEDEMMXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE11700202705803435253", ("HYVEDEMMXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE88700202700039908140", ("HYVEDEMMXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE83700202700002711931", ("HYVEDEMMXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE40700202705800522694", ("HYVEDEMMXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE61700202705801800000", ("HYVEDEMMXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE69600202901320815432", ("HYVEDEMM473", .OK)));
-    XCTAssert(ibanToBicTest("DE92660202861457032621", ("HYVEDEMM475", .OK)));
-    XCTAssert(ibanToBicTest("DE67600202900005951950", ("HYVEDEMM473", .OK)));
-    XCTAssert(ibanToBicTest("DE82600202904340111112", ("HYVEDEMM473", .OK)));
-    XCTAssert(ibanToBicTest("DE28600202904340118001", ("HYVEDEMM473", .OK)));
-    XCTAssert(ibanToBicTest("DE42790200761050958422", ("HYVEDEMM455", .OK)));
-    XCTAssert(ibanToBicTest("DE69600202901320815432", ("HYVEDEMM473", .OK)));
-    XCTAssert(ibanToBicTest("DE56790200760005951950", ("HYVEDEMM455", .OK)));
-    XCTAssert(ibanToBicTest("DE29790200761490196966", ("HYVEDEMM455", .OK)));
-    XCTAssert(ibanToBicTest("DE41300107000000123456", ("BOTKDEDXXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE85300107000000654321", ("BOTKDEDXXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE17680523280006015002", ("SOLADES1STF", .OK)));
-    XCTAssert(ibanToBicTest("DE96500604000000011404", ("GENODEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE96500604000000011404", ("GENODEFFXXX", .OK)));
-    XCTAssert(ibanToBicTest("DE49666500850000000868", ("PZHSDE66XXX", .OK)));
-    XCTAssert(ibanToBicTest("DE33666500850000012602", ("PZHSDE66XXX", .OK)));
-    XCTAssert(ibanToBicTest("DE12360102001231234567", ("VONEDE33XXX", .OK)));
-    XCTAssert(ibanToBicTest("DE38600501010002662604", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE54600501010002659600", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE22600501017496510994", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE85600501017481501341", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE13600501017498502663", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE28600501017477501214", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE82600501017469534505", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE69600501010004475655", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE72600501017406501175", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE91600501017485500252", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE94600501017401555913", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE89600501017401555906", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE31600501017401507480", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE57600501017401507497", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE21600501017401507466", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE94600501017401555913", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE26600501017401507473", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE37600501017401555872", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE32600501017401550530", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE96600501017401501266", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE94600501017401555913", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE53600501017401502234", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE37600501017401555872", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE14600501017401512248", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE82600501017871538395", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE53600501010001366705", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE21600501010002009906", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE06600501010002001155", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE59600501010002588991", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE85600501017871513509", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE66600501017871531505", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE61600501017871521216", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE49600501010001364934", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE17600501010001367450", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE53600501010001366705", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE56600501017402051588", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE23600501010001367924", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE48600501010001372809", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE21600501010002009906", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE73600501010002782254", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE23600501010001367924", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE26600501010001362826", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE66600501010001119897", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE92600501010001375703", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE74600501017495500967", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE28600501010002810030", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE02600501017495530102", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE56600501017495501485", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE49600501010001364934", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE56600501017402046641", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE15600501017402045439", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE56600501017402051588", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE80600501017461500128", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE61600501017461505611", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE43600501017461500018", ("SOLADEST600", .OK)));
-    XCTAssert(ibanToBicTest("DE93600501017461505714", ("SOLADEST600", .OK)));
+    XCTAssert(ibanToBicTest("DE32265800700732502200", ("DRESDEFF265", .ok)));
+    XCTAssert(ibanToBicTest("DE32265800700732502200", ("DRESDEFF265", .ok)));
+    XCTAssert(ibanToBicTest("DE60265800708732502200", ("DRESDEFF265", .ok)));
+    XCTAssert(ibanToBicTest("DE37265800704820379900", ("DRESDEFF265", .ok)));
+    XCTAssert(ibanToBicTest("DE70500800004814706100", ("DRESDEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE77500800006814706100", ("DRESDEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE32500800007814706100", ("DRESDEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE84500800008814706100", ("DRESDEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE39500800009814706100", ("DRESDEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE42500800000023165400", ("DRESDEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE42500800000023165400", ("DRESDEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE21500800000004350300", ("DRESDEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE21500800000004350300", ("DRESDEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE49500894000000526400", ("DRESDEFFI01", .ok)));
+    XCTAssert(ibanToBicTest("DE73100800000998761700", ("DRESDEFF100", .ok)));
+    XCTAssert(ibanToBicTest("DE10265800709902100000", ("DRESDEFF265", .ok)));
+    XCTAssert(ibanToBicTest("DE24505400280421738600", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE10720400460111198800", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE46505400280420086100", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE13505400280421573704", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE26505400280421679200", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE63654400870130023500", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE29230400220010441400", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE27120400000040050700", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE73230400220010133700", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE77230400220010503101", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE12120400000052065002", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE97500400000930125001", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE89700400410930125000", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE59500400000930125006", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE81200411110130023500", ("COBADEHDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE69370800400215022000", ("DRESDEFF370", .ok)));
+    XCTAssert(ibanToBicTest("DE46500400000311011100", ("COBADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE16150800004241770400", ("DRESDEFF150", .ok)));
+    XCTAssert(ibanToBicTest("DE41120800000070548200", ("DRESDEFF120", .ok)));
+    XCTAssert(ibanToBicTest("DE95210800500118650400", ("DRESDEFF210", .ok)));
+    XCTAssert(ibanToBicTest("DE58210800500001186103", ("DRESDEFF210", .ok)));
+    XCTAssert(ibanToBicTest("DE80500202000000038000", ("BHFBDEFF500", .ok)));
+    XCTAssert(ibanToBicTest("DE46500202000030009963", ("BHFBDEFF500", .ok)));
+    XCTAssert(ibanToBicTest("DE02500202000040033086", ("BHFBDEFF500", .ok)));
+    XCTAssert(ibanToBicTest("DE55500202000050017409", ("BHFBDEFF500", .ok)));
+    XCTAssert(ibanToBicTest("DE38500202000055036107", ("BHFBDEFF500", .ok)));
+    XCTAssert(ibanToBicTest("DE98500202000070049754", ("BHFBDEFF500", .ok)));
+    XCTAssert(ibanToBicTest("DE03683515573047232594", ("SOLADES1SFH", .ok)));
+    XCTAssert(ibanToBicTest("DE10683515570016005845", ("SOLADES1SFH", .ok)));
+    XCTAssert(ibanToBicTest("DE95500500005000002096", ("HELADEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE15300500000000060624", ("WELADEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE25300606010000060624", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE82501203830020475000", ("DELBDE33XXX", .ok)));
+    XCTAssert(ibanToBicTest("DE82501203830020475000", ("DELBDE33XXX", .ok)));
+    XCTAssert(ibanToBicTest("DE82501203830020475000", ("DELBDE33XXX", .ok)));
+    XCTAssert(ibanToBicTest("DE82501203830020475000", ("DELBDE33XXX", .ok)));
+    XCTAssert(ibanToBicTest("DE81360200300000305200", ("NBAGDE3EXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE03360200300000900826", ("NBAGDE3EXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE71360200300000705020", ("NBAGDE3EXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE18360200300009197354", ("NBAGDE3EXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE69250501800000017095", ("SPKHDE2HXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE77545201946790149813", ("HYVEDEMM483", .ok)));
+    XCTAssert(ibanToBicTest("DE70762200731210100047", ("HYVEDEMM419", .ok)));
+    XCTAssert(ibanToBicTest("DE70762200731210100047", ("HYVEDEMM419", .ok)));
+    XCTAssert(ibanToBicTest("DE70762200731210100047", ("HYVEDEMM419", .ok)));
+    XCTAssert(ibanToBicTest("DE70762200731210100047", ("HYVEDEMM419", .ok)));
+    XCTAssert(ibanToBicTest("DE92660202861457032621", ("HYVEDEMM475", .ok)));
+    XCTAssert(ibanToBicTest("DE70762200731210100047", ("HYVEDEMM419", .ok)));
+    XCTAssert(ibanToBicTest("DE92660202861457032621", ("HYVEDEMM475", .ok)));
+    XCTAssert(ibanToBicTest("DE06710221823200000012", ("HYVEDEMM453", .ok)));
+    XCTAssert(ibanToBicTest("DE07100208900005951950", ("HYVEDEMM488", .ok)));
+    XCTAssert(ibanToBicTest("DE76700202702950219435", ("HYVEDEMMXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE92660202861457032621", ("HYVEDEMM475", .ok)));
+    XCTAssert(ibanToBicTest("DE55700202700000000897", ("HYVEDEMMXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE36700202700847321750", ("HYVEDEMMXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE11700202705803435253", ("HYVEDEMMXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE88700202700039908140", ("HYVEDEMMXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE83700202700002711931", ("HYVEDEMMXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE40700202705800522694", ("HYVEDEMMXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE61700202705801800000", ("HYVEDEMMXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE69600202901320815432", ("HYVEDEMM473", .ok)));
+    XCTAssert(ibanToBicTest("DE92660202861457032621", ("HYVEDEMM475", .ok)));
+    XCTAssert(ibanToBicTest("DE67600202900005951950", ("HYVEDEMM473", .ok)));
+    XCTAssert(ibanToBicTest("DE82600202904340111112", ("HYVEDEMM473", .ok)));
+    XCTAssert(ibanToBicTest("DE28600202904340118001", ("HYVEDEMM473", .ok)));
+    XCTAssert(ibanToBicTest("DE42790200761050958422", ("HYVEDEMM455", .ok)));
+    XCTAssert(ibanToBicTest("DE69600202901320815432", ("HYVEDEMM473", .ok)));
+    XCTAssert(ibanToBicTest("DE56790200760005951950", ("HYVEDEMM455", .ok)));
+    XCTAssert(ibanToBicTest("DE29790200761490196966", ("HYVEDEMM455", .ok)));
+    XCTAssert(ibanToBicTest("DE41300107000000123456", ("BOTKDEDXXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE85300107000000654321", ("BOTKDEDXXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE17680523280006015002", ("SOLADES1STF", .ok)));
+    XCTAssert(ibanToBicTest("DE96500604000000011404", ("GENODEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE96500604000000011404", ("GENODEFFXXX", .ok)));
+    XCTAssert(ibanToBicTest("DE49666500850000000868", ("PZHSDE66XXX", .ok)));
+    XCTAssert(ibanToBicTest("DE33666500850000012602", ("PZHSDE66XXX", .ok)));
+    XCTAssert(ibanToBicTest("DE12360102001231234567", ("VONEDE33XXX", .ok)));
+    XCTAssert(ibanToBicTest("DE38600501010002662604", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE54600501010002659600", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE22600501017496510994", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE85600501017481501341", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE13600501017498502663", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE28600501017477501214", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE82600501017469534505", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE69600501010004475655", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE72600501017406501175", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE91600501017485500252", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE94600501017401555913", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE89600501017401555906", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE31600501017401507480", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE57600501017401507497", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE21600501017401507466", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE94600501017401555913", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE26600501017401507473", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE37600501017401555872", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE32600501017401550530", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE96600501017401501266", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE94600501017401555913", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE53600501017401502234", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE37600501017401555872", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE14600501017401512248", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE82600501017871538395", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE53600501010001366705", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE21600501010002009906", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE06600501010002001155", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE59600501010002588991", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE85600501017871513509", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE66600501017871531505", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE61600501017871521216", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE49600501010001364934", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE17600501010001367450", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE53600501010001366705", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE56600501017402051588", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE23600501010001367924", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE48600501010001372809", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE21600501010002009906", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE73600501010002782254", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE23600501010001367924", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE26600501010001362826", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE66600501010001119897", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE92600501010001375703", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE74600501017495500967", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE28600501010002810030", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE02600501017495530102", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE56600501017495501485", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE49600501010001364934", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE56600501017402046641", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE15600501017402045439", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE56600501017402051588", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE80600501017461500128", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE61600501017461505611", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE43600501017461500018", ("SOLADEST600", .ok)));
+    XCTAssert(ibanToBicTest("DE93600501017461505714", ("SOLADEST600", .ok)));
 
     // Some of the tests below fail, even though in the IBAN creation tests the same values succeed.
     // That happens usually for bank codes that are no longer in use and need a mapping to another
     // bankcode. However this often requires a specific account which we do not have here by intention.
     // Other calls may return a different bank code than what comes out of the IBAN creation.
-    XCTAssert(bankCodeToBicTest("26580070", countryCode: "de", ("DRESDEFF265", .OK)));
-    XCTAssert(bankCodeToBicTest("50080000", countryCode: "de", ("DRESDEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("50089400", countryCode: "de", ("DRESDEFFI01", .OK)));
-    XCTAssert(bankCodeToBicTest("10080000", countryCode: "de", ("DRESDEFF100", .OK)));
-    XCTAssert(bankCodeToBicTest("26580070", countryCode: "de", ("DRESDEFF265", .OK)));
-    XCTAssert(bankCodeToBicTest("26580070", countryCode: "de", ("DRESDEFF265", .OK)));
-    XCTAssert(bankCodeToBicTest("50540028", countryCode: "de", ("COBADEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("72040046", countryCode: "de", ("COBADEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("65440087", countryCode: "de", ("COBADEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("23040022", countryCode: "de", ("COBADEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("12040000", countryCode: "de", ("COBADEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("23040022", countryCode: "de", ("COBADEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("12040000", countryCode: "de", ("COBADEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("50040000", countryCode: "de", ("COBADEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("70040041", countryCode: "de", ("COBADEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("50040000", countryCode: "de", ("COBADEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("20041111", countryCode: "de", ("COBADEHDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("37080040", countryCode: "de", ("DRESDEFF370", .OK)));
-    XCTAssert(bankCodeToBicTest("50040000", countryCode: "de", ("COBADEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("15080000", countryCode: "de", ("DRESDEFF150", .OK)));
-    XCTAssert(bankCodeToBicTest("12080000", countryCode: "de", ("DRESDEFF120", .OK)));
-    XCTAssert(bankCodeToBicTest("21080050", countryCode: "de", ("DRESDEFF210", .OK)));
-    XCTAssert(bankCodeToBicTest("21080050", countryCode: "de", ("DRESDEFF210", .OK)));
-    XCTAssert(bankCodeToBicTest("50020200", countryCode: "de", ("BHFBDEFF500", .OK)));
-    XCTAssert(bankCodeToBicTest("51020000", countryCode: "de", ("BHFBDEFF500", .OK)));
-    XCTAssert(bankCodeToBicTest("30020500", countryCode: "de", ("BHFBDEFF500", .OK)));
-    XCTAssert(bankCodeToBicTest("20120200", countryCode: "de", ("BHFBDEFF500", .OK)));
-    XCTAssert(bankCodeToBicTest("70220200", countryCode: "de", ("BHFBDEFF500", .OK)));
-    XCTAssert(bankCodeToBicTest("10020200", countryCode: "de", ("BHFBDEFF500", .OK)));
-    XCTAssert(bankCodeToBicTest("68351976", countryCode: "de", ("SOLADES1SFH", .OK)));
-    XCTAssert(bankCodeToBicTest("68351976", countryCode: "de", ("SOLADES1SFH", .OK)));
-    XCTAssert(bankCodeToBicTest("50850049", countryCode: "de", ("HELADEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("40050000", countryCode: "de", ("WELADEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("10090603", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("12090640", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("20090602", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("21090619", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("23092620", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("25090608", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("26560625", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("27090618", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("28090633", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("29090605", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("30060601", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("33060616", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("35060632", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("76090613", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("79090624", countryCode: "de", ("DAAEDEDDXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("50120383", countryCode: "de", ("DELBDE33XXX", .OK)));
-    XCTAssert(bankCodeToBicTest("50130100", countryCode: "de", ("DELBDE33XXX", .OK)));
-    XCTAssert(bankCodeToBicTest("50220200", countryCode: "de", ("DELBDE33XXX", .OK)));
-    XCTAssert(bankCodeToBicTest("70030800", countryCode: "de", ("DELBDE33XXX", .OK)));
-    XCTAssert(bankCodeToBicTest("35020030", countryCode: "de", ("NBAGDE3EXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("35020030", countryCode: "de", ("NBAGDE3EXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("35020030", countryCode: "de", ("NBAGDE3EXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("35020030", countryCode: "de", ("NBAGDE3EXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("25050299", countryCode: "de", ("SPKHDE2HXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("54520071", countryCode: "de", ("", .NoBIC)));
-    XCTAssert(bankCodeToBicTest("79020325", countryCode: "de", ("", .NoBIC)));
-    XCTAssert(bankCodeToBicTest("70020001", countryCode: "de", ("", .NoBIC)));
-    XCTAssert(bankCodeToBicTest("76020214", countryCode: "de", ("", .NoBIC)));
-    XCTAssert(bankCodeToBicTest("76220073", countryCode: "de", ("HYVEDEMM419", .OK)));
-    XCTAssert(bankCodeToBicTest("66020150", countryCode: "de", ("", .NoBIC)));
-    XCTAssert(bankCodeToBicTest("76220073", countryCode: "de", ("HYVEDEMM419", .OK)));
-    XCTAssert(bankCodeToBicTest("66020286", countryCode: "de", ("HYVEDEMM475", .OK)));
-    XCTAssert(bankCodeToBicTest("76220073", countryCode: "de", ("HYVEDEMM419", .OK)));
-    XCTAssert(bankCodeToBicTest("10020890", countryCode: "de", ("HYVEDEMM488", .OK)));
-    XCTAssert(bankCodeToBicTest("70020270", countryCode: "de", ("HYVEDEMMXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("60020290", countryCode: "de", ("HYVEDEMM473", .OK)));
-    XCTAssert(bankCodeToBicTest("79020076", countryCode: "de", ("HYVEDEMM455", .OK)));
-    XCTAssert(bankCodeToBicTest("20110700", countryCode: "de", ("BOTKDEH1XXX", .OK)));
-    XCTAssert(bankCodeToBicTest("30010700", countryCode: "de", ("BOTKDEDXXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("68052328", countryCode: "de", ("SOLADES1STF", .OK)));
-    XCTAssert(bankCodeToBicTest("62220000", countryCode: "de", ("GENODEFFXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("60651070", countryCode: "de", ("PZHSDE66XXX", .OK)));
-    XCTAssert(bankCodeToBicTest("10120800", countryCode: "de", ("VONEDE33XXX", .OK)));
-    XCTAssert(bankCodeToBicTest("67220020", countryCode: "de", ("SOLADEST672", .OK)));
-    XCTAssert(bankCodeToBicTest("67020020", countryCode: "de", ("SOLADEST671", .OK)));
-    XCTAssert(bankCodeToBicTest("69421020", countryCode: "de", ("SOLADEST694", .OK)));
-    XCTAssert(bankCodeToBicTest("66620020", countryCode: "de", ("SOLADEST666", .OK)));
-    XCTAssert(bankCodeToBicTest("64120030", countryCode: "de", ("SOLADEST641", .OK)));
-    XCTAssert(bankCodeToBicTest("64020030", countryCode: "de", ("SOLADEST640", .OK)));
-    XCTAssert(bankCodeToBicTest("63020130", countryCode: "de", ("SOLADEST630", .OK)));
-    XCTAssert(bankCodeToBicTest("62030050", countryCode: "de", ("SOLADEST620", .OK)));
-    XCTAssert(bankCodeToBicTest("69220020", countryCode: "de", ("SOLADEST692", .OK)));
-    XCTAssert(bankCodeToBicTest("55050000", countryCode: "de", ("SOLADEST550", .OK)));
-    XCTAssert(bankCodeToBicTest("55050000", countryCode: "de", ("SOLADEST550", .OK)));
-    XCTAssert(bankCodeToBicTest("60020030", countryCode: "de", ("SOLADEST601", .OK)));
-    XCTAssert(bankCodeToBicTest("60050000", countryCode: "de", ("SOLADESTXXX", .OK)));
-    XCTAssert(bankCodeToBicTest("66020020", countryCode: "de", ("SOLADEST663", .OK)));
-    XCTAssert(bankCodeToBicTest("66050000", countryCode: "de", ("SOLADEST660", .OK)));
-    XCTAssert(bankCodeToBicTest("86050000", countryCode: "de", ("SOLADEST861", .OK)));
+    XCTAssert(bankCodeToBicTest("26580070", countryCode: "de", ("DRESDEFF265", .ok)));
+    XCTAssert(bankCodeToBicTest("50080000", countryCode: "de", ("DRESDEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("50089400", countryCode: "de", ("DRESDEFFI01", .ok)));
+    XCTAssert(bankCodeToBicTest("10080000", countryCode: "de", ("DRESDEFF100", .ok)));
+    XCTAssert(bankCodeToBicTest("26580070", countryCode: "de", ("DRESDEFF265", .ok)));
+    XCTAssert(bankCodeToBicTest("26580070", countryCode: "de", ("DRESDEFF265", .ok)));
+    XCTAssert(bankCodeToBicTest("50540028", countryCode: "de", ("COBADEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("72040046", countryCode: "de", ("COBADEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("65440087", countryCode: "de", ("COBADEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("23040022", countryCode: "de", ("COBADEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("12040000", countryCode: "de", ("COBADEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("23040022", countryCode: "de", ("COBADEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("12040000", countryCode: "de", ("COBADEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("50040000", countryCode: "de", ("COBADEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("70040041", countryCode: "de", ("COBADEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("50040000", countryCode: "de", ("COBADEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("20041111", countryCode: "de", ("COBADEHDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("37080040", countryCode: "de", ("DRESDEFF370", .ok)));
+    XCTAssert(bankCodeToBicTest("50040000", countryCode: "de", ("COBADEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("15080000", countryCode: "de", ("DRESDEFF150", .ok)));
+    XCTAssert(bankCodeToBicTest("12080000", countryCode: "de", ("DRESDEFF120", .ok)));
+    XCTAssert(bankCodeToBicTest("21080050", countryCode: "de", ("DRESDEFF210", .ok)));
+    XCTAssert(bankCodeToBicTest("21080050", countryCode: "de", ("DRESDEFF210", .ok)));
+    XCTAssert(bankCodeToBicTest("50020200", countryCode: "de", ("BHFBDEFF500", .ok)));
+    XCTAssert(bankCodeToBicTest("51020000", countryCode: "de", ("BHFBDEFF500", .ok)));
+    XCTAssert(bankCodeToBicTest("30020500", countryCode: "de", ("BHFBDEFF500", .ok)));
+    XCTAssert(bankCodeToBicTest("20120200", countryCode: "de", ("BHFBDEFF500", .ok)));
+    XCTAssert(bankCodeToBicTest("70220200", countryCode: "de", ("BHFBDEFF500", .ok)));
+    XCTAssert(bankCodeToBicTest("10020200", countryCode: "de", ("BHFBDEFF500", .ok)));
+    XCTAssert(bankCodeToBicTest("68351976", countryCode: "de", ("SOLADES1SFH", .ok)));
+    XCTAssert(bankCodeToBicTest("68351976", countryCode: "de", ("SOLADES1SFH", .ok)));
+    XCTAssert(bankCodeToBicTest("50850049", countryCode: "de", ("HELADEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("40050000", countryCode: "de", ("WELADEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("10090603", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("12090640", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("20090602", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("21090619", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("23092620", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("25090608", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("26560625", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("27090618", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("28090633", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("29090605", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("30060601", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("33060616", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("35060632", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("76090613", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("79090624", countryCode: "de", ("DAAEDEDDXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("50120383", countryCode: "de", ("DELBDE33XXX", .ok)));
+    XCTAssert(bankCodeToBicTest("50130100", countryCode: "de", ("DELBDE33XXX", .ok)));
+    XCTAssert(bankCodeToBicTest("50220200", countryCode: "de", ("DELBDE33XXX", .ok)));
+    XCTAssert(bankCodeToBicTest("70030800", countryCode: "de", ("DELBDE33XXX", .ok)));
+    XCTAssert(bankCodeToBicTest("35020030", countryCode: "de", ("NBAGDE3EXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("35020030", countryCode: "de", ("NBAGDE3EXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("35020030", countryCode: "de", ("NBAGDE3EXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("35020030", countryCode: "de", ("NBAGDE3EXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("25050299", countryCode: "de", ("SPKHDE2HXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("54520071", countryCode: "de", ("", .noBIC)));
+    XCTAssert(bankCodeToBicTest("79020325", countryCode: "de", ("", .noBIC)));
+    XCTAssert(bankCodeToBicTest("70020001", countryCode: "de", ("", .noBIC)));
+    XCTAssert(bankCodeToBicTest("76020214", countryCode: "de", ("", .noBIC)));
+    XCTAssert(bankCodeToBicTest("76220073", countryCode: "de", ("HYVEDEMM419", .ok)));
+    XCTAssert(bankCodeToBicTest("66020150", countryCode: "de", ("", .noBIC)));
+    XCTAssert(bankCodeToBicTest("76220073", countryCode: "de", ("HYVEDEMM419", .ok)));
+    XCTAssert(bankCodeToBicTest("66020286", countryCode: "de", ("HYVEDEMM475", .ok)));
+    XCTAssert(bankCodeToBicTest("76220073", countryCode: "de", ("HYVEDEMM419", .ok)));
+    XCTAssert(bankCodeToBicTest("10020890", countryCode: "de", ("HYVEDEMM488", .ok)));
+    XCTAssert(bankCodeToBicTest("70020270", countryCode: "de", ("HYVEDEMMXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("60020290", countryCode: "de", ("HYVEDEMM473", .ok)));
+    XCTAssert(bankCodeToBicTest("79020076", countryCode: "de", ("HYVEDEMM455", .ok)));
+    XCTAssert(bankCodeToBicTest("20110700", countryCode: "de", ("BOTKDEH1XXX", .ok)));
+    XCTAssert(bankCodeToBicTest("30010700", countryCode: "de", ("BOTKDEDXXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("68052328", countryCode: "de", ("SOLADES1STF", .ok)));
+    XCTAssert(bankCodeToBicTest("62220000", countryCode: "de", ("GENODEFFXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("60651070", countryCode: "de", ("PZHSDE66XXX", .ok)));
+    XCTAssert(bankCodeToBicTest("10120800", countryCode: "de", ("VONEDE33XXX", .ok)));
+    XCTAssert(bankCodeToBicTest("67220020", countryCode: "de", ("SOLADEST672", .ok)));
+    XCTAssert(bankCodeToBicTest("67020020", countryCode: "de", ("SOLADEST671", .ok)));
+    XCTAssert(bankCodeToBicTest("69421020", countryCode: "de", ("SOLADEST694", .ok)));
+    XCTAssert(bankCodeToBicTest("66620020", countryCode: "de", ("SOLADEST666", .ok)));
+    XCTAssert(bankCodeToBicTest("64120030", countryCode: "de", ("SOLADEST641", .ok)));
+    XCTAssert(bankCodeToBicTest("64020030", countryCode: "de", ("SOLADEST640", .ok)));
+    XCTAssert(bankCodeToBicTest("63020130", countryCode: "de", ("SOLADEST630", .ok)));
+    XCTAssert(bankCodeToBicTest("62030050", countryCode: "de", ("SOLADEST620", .ok)));
+    XCTAssert(bankCodeToBicTest("69220020", countryCode: "de", ("SOLADEST692", .ok)));
+    XCTAssert(bankCodeToBicTest("55050000", countryCode: "de", ("SOLADEST550", .ok)));
+    XCTAssert(bankCodeToBicTest("55050000", countryCode: "de", ("SOLADEST550", .ok)));
+    XCTAssert(bankCodeToBicTest("60020030", countryCode: "de", ("SOLADEST601", .ok)));
+    XCTAssert(bankCodeToBicTest("60050000", countryCode: "de", ("SOLADESTXXX", .ok)));
+    XCTAssert(bankCodeToBicTest("66020020", countryCode: "de", ("SOLADEST663", .ok)));
+    XCTAssert(bankCodeToBicTest("66050000", countryCode: "de", ("SOLADEST660", .ok)));
+    XCTAssert(bankCodeToBicTest("86050000", countryCode: "de", ("SOLADEST861", .ok)));
   }
 
-  func bankInfoTest(bic: String, _ expected: (isAvailable: Bool, country: String, name: String, city: String, address: String)) -> Bool {
+  func bankInfoTest(_ bic: String, _ expected: (isAvailable: Bool, country: String, name: String, city: String, address: String)) -> Bool {
     if let info = IBANtools.instituteDetailsForBIC(bic) {
       if !expected.isAvailable {
         return false;
@@ -495,7 +497,7 @@ class IBANtoolsTests: XCTestCase {
     return !expected.isAvailable;
   }
 
-  func bankInfoTest2(bic: String, _ expected: (isAvailable: Bool, hbciVersion: String, pinTanVersion: String, url: String)) -> Bool {
+  func bankInfoTest2(_ bic: String, _ expected: (isAvailable: Bool, hbciVersion: String, pinTanVersion: String, url: String)) -> Bool {
     if let info = IBANtools.instituteDetailsForBIC(bic) {
       if !expected.isAvailable {
         return false;
@@ -505,7 +507,7 @@ class IBANtoolsTests: XCTestCase {
     return !expected.isAvailable;
   }
 
-  func bankInfoTest3(bankCode: String, _ expected: (isAvailable: Bool, country: String, name: String, city: String, address: String)) -> Bool {
+  func bankInfoTest3(_ bankCode: String, _ expected: (isAvailable: Bool, country: String, name: String, city: String, address: String)) -> Bool {
     if let info = IBANtools.instituteDetailsForBankCode(bankCode) {
       if !expected.isAvailable {
         return false;
@@ -516,7 +518,7 @@ class IBANtoolsTests: XCTestCase {
     return !expected.isAvailable;
   }
 
-  func bankInfoTest4(bankCode: String, _ expected: (isAvailable: Bool, hbciVersion: String, pinTanVersion: String, url: String)) -> Bool {
+  func bankInfoTest4(_ bankCode: String, _ expected: (isAvailable: Bool, hbciVersion: String, pinTanVersion: String, url: String)) -> Bool {
     if let info = IBANtools.instituteDetailsForBankCode(bankCode) {
       if !expected.isAvailable {
         return false;
