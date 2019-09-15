@@ -1,21 +1,21 @@
 /**
-* Copyright (c) 2014, 2017, Mike Lischke. All rights reserved.
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License as
-* published by the Free Software Foundation; version 2 of the
-* License.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
-* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-* 02110-1301  USA
-*/
+ * Copyright (c) 2014, 2019, Mike Lischke. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; version 2 of the
+ * License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301  USA
+ */
 
 import Foundation
 import AppKit
@@ -48,9 +48,10 @@ internal class DEAccountCheck : AccountCheck {
   // Structure is as follows:
   // - For each method we have a set of parameters by default (e.g. 01, 07).
   // - Some methods have an alternative method. For those there is a XXb variant (e.g. 13b, 26b).
-  // - Some methods have even more alternatives with complex interaction. For those we have no default params (the default set has e.g. no modulus value)
-  //   but instead individual methods (e.g. 51a, 51b etc.).
-  // - Some methods use other methods depending on certain conditions. They are handled manually and have no default values here (e.g. A6, B3).
+  // - Some methods have even more alternatives with complex interaction. For those we have no default params
+  //   (the default set has e.g. no modulus value) but instead individual methods (e.g. 51a, 51b etc.).
+  // - Some methods use other methods depending on certain conditions. They are handled manually and have no default
+  //   values here (e.g. A6, B3).
   static fileprivate var methodParameters: [String: MethodParameters] = [
     "00": (10, [2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2], (0, 8, 9)),
     "01": (10, [3, 7, 1, 3, 7, 1, 3, 7, 1], (0, 8, 9)),
@@ -279,11 +280,6 @@ internal class DEAccountCheck : AccountCheck {
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
   ];
 
-  // Explicit mappings of bank codes and/or bank accounts to new bank codes and/or bank accounts.
-  // Each entry can have more than one mapping details entry.
-  typealias MappingDetails = (rangeStart: Int, rangeEnd: Int, account: Int, bankCode: Int);
-  static fileprivate var mappings: [Int: (rule: Int, details: [MappingDetails])] = [:];
-
   static fileprivate let accounts13091054: [Int] = [
        1718190,   22000225,   49902271,   49902280,  101680029,
      104200028,  106200025,  108000171,  108000279,  108001364,
@@ -310,13 +306,17 @@ internal class DEAccountCheck : AccountCheck {
     9999999997, 9999999998, 9999999999,
   ];
 
-  override class func initialize() {
-    super.initialize();
+  // Explicit mappings of bank codes and/or bank accounts to new bank codes and/or bank accounts.
+  // Each entry can have more than one mapping details entry.
+  typealias MappingDetails = (rangeStart: Int, rangeEnd: Int, account: Int, bankCode: Int);
+  static fileprivate var _mappings: [Int: (rule: Int, details: [MappingDetails])] = [:];
 
+  class var mappings: [Int: (rule: Int, details: [MappingDetails])] {
     let bundle = Bundle(for: DEAccountCheck.self);
     if let resourcePath = bundle.path(forResource: "mappings", ofType: "txt", inDirectory: "de") {
       loadData((resourcePath as NSString).deletingLastPathComponent);
     }
+    return _mappings;
   }
 
   override class func loadData(_ path: String) {
@@ -324,7 +324,7 @@ internal class DEAccountCheck : AccountCheck {
       do {
         let content = try NSString(contentsOfFile: path + "/mappings.txt", encoding: String.Encoding.utf8.rawValue);
 
-        mappings = [:];
+        _mappings = [:];
 
         var sourceBankCode: NSString = "";
         var rule = 0;
@@ -450,12 +450,12 @@ internal class DEAccountCheck : AccountCheck {
           // The source bank code can actually be a list of bank codes.
           for bankCode in sourceBankCode.components(separatedBy: ",") {
             let code = Int(bankCode)!;
-            var mappingTuple = mappings[code];
+            var mappingTuple = _mappings[code];
             if mappingTuple == nil {
               mappingTuple = (rule, []);
             }
             mappingTuple!.details.append(entry);
-            mappings[code] = mappingTuple;
+            _mappings[code] = mappingTuple;
           }
         }
       } catch let error as NSError {
@@ -502,7 +502,7 @@ internal class DEAccountCheck : AccountCheck {
   /// can be used for special checks (e.g. the IBAN conversion).
   /// Special accounts are first mapped to their real values (which are returned as a further value).
   class func checkWithMethod(_ startMethod: String, _ account: inout String, _ bankCode: inout String,
-    _ forIBAN: Bool, _ allowAlternative: Bool = true, _ checkSpecial: Bool = true) -> (Bool, IBANToolsResult, Int) {
+                             _ forIBAN: Bool, _ allowAlternative: Bool = true, _ checkSpecial: Bool = true) -> (Bool, IBANToolsResult, Int) {
 
     if checkSpecial {
       checkSpecialAccount(&account, bankCode: &bankCode);
@@ -519,11 +519,16 @@ internal class DEAccountCheck : AccountCheck {
 
     // Switches the current computation method and loading its paramters (if there are own ones).
     func useMethod(_ newMethod: String) {
-      let endIndex = newMethod.index(newMethod.startIndex, offsetBy: 2);
-      method = newMethod.substring(to: endIndex); // Only use the base method number for the switch var.
+      if newMethod.count > 2 {
+        let endIndex = newMethod.index(newMethod.startIndex, offsetBy: 2);
+        method = String(newMethod[..<endIndex]); // Only use the base method number for the switch var.
+      } else {
+        method = newMethod;
+      }
+
       if let p = self.methodParameters[newMethod] {
         parameters = p;
-        workSlice = number10[parameters.indices.start...parameters.indices.stop];
+        workSlice = number10[parameters.indices.start ... parameters.indices.stop];
         expectedCheckSum = number10[parameters.indices.check];
       }
     }
@@ -556,13 +561,13 @@ internal class DEAccountCheck : AccountCheck {
 
     // Fill the original number on the left with zeros to get to a 10 digits number.
     // Determine the exact number of leading zeros for some special checks.
-    let leadingZeros = 10 - stripped.characters.count;
+    let leadingZeros = 10 - stripped.count;
     temp = [UInt16]((String(repeating: "0", count: leadingZeros) + stripped).utf16);
     for n in temp {
       number10.append(n - 48);
     }
 
-    workSlice = number10[parameters.indices.start...parameters.indices.stop];
+    workSlice = number10[parameters.indices.start ... parameters.indices.stop];
     expectedCheckSum = number10[parameters.indices.check];
 
     let defaultFalseResult = (false, IBANToolsResult.badAccount, -1);
@@ -623,16 +628,16 @@ internal class DEAccountCheck : AccountCheck {
         }
         startIndex += 1;
       }
-      workSlice = number10[startIndex...parameters.indices.stop];
+      workSlice = number10[startIndex ... parameters.indices.stop];
 
     case "26" where leadingZeros >= 2:
       // Special case which requires a shift for accounts starting with 2 zeros.
       useMethod("26b");
 
     case "32" where bankCode == "13091054" && forIBAN: // Pommersche Voksbank, special accounts always valid for IBAN.
-        if accounts13091054.contains(accountAsInt) {
-          return (true, .noChecksum, -1); // No checks for checksum in those special accounts.
-        }
+      if accounts13091054.contains(accountAsInt) {
+        return (true, .noChecksum, -1); // No checks for checksum in those special accounts.
+      }
       break;
 
     case "41":
@@ -640,7 +645,7 @@ internal class DEAccountCheck : AccountCheck {
         number10[0] = 0;
         number10[1] = 0;
         number10[2] = 0;
-        workSlice = number10[parameters.indices.start...parameters.indices.stop];
+        workSlice = number10[parameters.indices.start ... parameters.indices.stop];
       }
 
     case "45":
@@ -656,7 +661,7 @@ internal class DEAccountCheck : AccountCheck {
     case "61":
       if number10[8] == 8 {
         // Include digits 8 and 9 in the work slice, if the type number is 8.
-        workSlice += number10[8...9];
+        workSlice += number10[8 ... 9];
       }
 
     case "63":
@@ -667,7 +672,7 @@ internal class DEAccountCheck : AccountCheck {
     case "65":
       if number10[8] == 9 {
         // Include digits 8 and 9 in the work slice, if the type number is 9.
-        workSlice += number10[8...9];
+        workSlice += number10[8 ... 9];
       }
 
     case "66":
@@ -678,7 +683,7 @@ internal class DEAccountCheck : AccountCheck {
     case "70":
       // Certain numbers do not include all digits for the computation.
       if number10[3] == 5 || (number10[3] == 6 && number10[4] == 9) {
-        workSlice = number10[3...8];
+        workSlice = number10[3 ... 8];
       }
 
     case "76":
@@ -726,8 +731,8 @@ internal class DEAccountCheck : AccountCheck {
 
     case "95":
       switch accountAsInt {
-      case 0000000001...0001999999, 0009000000...0025999999, 0396000000...0499999999,
-           0700000000...0799999999, 0910000000...0989999999:
+      case 0000000001 ... 0001999999, 0009000000 ... 0025999999, 0396000000 ... 0499999999,
+           0700000000 ... 0799999999, 0910000000 ... 0989999999:
         return defaultTrueResult;
 
       default:
@@ -735,17 +740,17 @@ internal class DEAccountCheck : AccountCheck {
       }
 
     case "96":
-      if 0001300000...0099399999 ~= accountAsInt{
+      if 0001300000 ... 0099399999 ~= accountAsInt{
         return defaultTrueResult;
       }
 
     case "99":
-      if  0396000000...0499999999 ~= accountAsInt{
+      if  0396000000 ... 0499999999 ~= accountAsInt{
         return defaultTrueResult;
       }
 
     case "A0":
-      if 100..<1000 ~= accountAsInt {
+      if 100 ..< 1000 ~= accountAsInt {
         return defaultTrueResult;
       }
 
@@ -788,12 +793,12 @@ internal class DEAccountCheck : AccountCheck {
       }
 
     case "B7":
-      if !(0001000000...0005999999 ~= accountAsInt || 0700000000...0899999999 ~= accountAsInt) {
+      if !(0001000000 ... 0005999999 ~= accountAsInt || 0700000000 ... 0899999999 ~= accountAsInt) {
         return defaultTrueResult;
       }
 
     case "B8":
-      if 5100000000...5999999999 ~= accountAsInt || 9010000000...9109999999 ~= accountAsInt {
+      if 5100000000 ... 5999999999 ~= accountAsInt || 9010000000 ... 9109999999 ~= accountAsInt {
         return defaultTrueResult;
       }
 
@@ -829,7 +834,7 @@ internal class DEAccountCheck : AccountCheck {
     case "C5":
       switch number.count {
       case 6, 9:
-        if !(1...8 ~= number[0]) { // Only account clusters 0000100000 - 0000899999 / 0100000000 - 0899999999 valid here.
+        if !(1 ... 8 ~= number[0]) { // Only account clusters 0000100000 - 0000899999 / 0100000000 - 0899999999 valid here.
           return defaultFalseResult;
         }
         useMethod("75");
@@ -868,7 +873,7 @@ internal class DEAccountCheck : AccountCheck {
         [4, 4, 5, 1, 9, 9, 4],
         [5, 4, 9, 9, 5, 7, 9],
       ];
-      number10 = prefix[Int(number10[0])] + number10[1...9];
+      number10 = prefix[Int(number10[0])] + number10[1 ... 9];
       workSlice = number10[0..<number10.count - 1];
 
     case "C7":
@@ -901,15 +906,15 @@ internal class DEAccountCheck : AccountCheck {
       workSlice = number10[0..<number10.count - 1];
 
     case "D8":
-      let part = intFromRange(number10[0...2]);
-      if 1...9 ~= part { // No check for cluster 0010000000 through 0099999999.
+      let part = intFromRange(number10[0 ... 2]);
+      if 1 ... 9 ~= part { // No check for cluster 0010000000 through 0099999999.
         return defaultTrueResult;
       }
       useMethod("00");
 
     case "E1":
       // Transform digit values into special numbers.
-      for i in 0...8 {
+      for i in 0 ... 8 {
         number10[i] += 48;
       }
       workSlice = number10[0..<number10.count - 1];
@@ -922,26 +927,26 @@ internal class DEAccountCheck : AccountCheck {
     // There's another switch for those method that may get a second chance.
     switch method {
     case "00", "08", "13", "30", "41", "45", "49", "59", "60", "65", "67", "72", "74", "78", "79",
-      "80", "94", "A1", "A2", "A3", "A7", "C6", "C9":
+         "80", "94", "A1", "A2", "A3", "A7", "C6", "C9":
       if method == "80" && number10[2] == 9 {
         return (method51(number10), .ok, parameters.indices.check);
       }
 
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference]);
+                              mappings: [.mapToZero, .dontMap, .returnDifference]);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
 
     case "06", "10", "11", "15", "19", "20", "26", "28", "32", "33", "34", "36", "37", "38", "39",
-    "40", "42", "44", "46", "47", "48", "50", "55", "70", "81", "88", "95", "96", "99",
-    "A0", "A8", "B0", "B6", "B8":
+         "40", "42", "44", "46", "47", "48", "50", "55", "70", "81", "88", "95", "96", "99",
+         "A0", "A8", "B0", "B8":
       if (method == "81" || method == "A8") && number10[2] == 9 {
         return (method51(number10), .ok, parameters.indices.check);
       }
 
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                              mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
       if method == "11" && checksum == 10 {
         checksum = 9;
       }
@@ -949,9 +954,9 @@ internal class DEAccountCheck : AccountCheck {
         return (true, .ok, parameters.indices.check);
       }
 
-    case "02", "04", "07", "14", "25", "58", "B2", "B8":
+    case "02", "04", "07", "14", "25", "58", "B2":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .mapToSpecial, .returnDifference], useDigitSum: false);
+                              mappings: [.mapToZero, .mapToSpecial, .returnDifference], useDigitSum: false);
       if method == "25" && checksum == 99 {
         // Checksum valid only if the work number (the one in the second position) is either 9 or 8.
         if number[1] == 8 || number[1] == 9 {
@@ -968,9 +973,9 @@ internal class DEAccountCheck : AccountCheck {
         return (true, .ok, parameters.indices.check);
       }
 
-    case "01", "03", "05", "18", "43", "49", "92", "98", "A9", "B1", "B7":
+    case "01", "03", "05", "18", "43", "92", "98", "A9", "B1", "B7":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
+                              mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -989,7 +994,7 @@ internal class DEAccountCheck : AccountCheck {
 
     case "31", "35", "76":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.dontMap, .dontMap, .returnRemainder], useDigitSum: false);
+                              mappings: [.dontMap, .dontMap, .returnRemainder], useDigitSum: false);
       if method == "35" && checksum == 10 {
         let valid = number10[8] == number10[9];
         return (valid, valid ? .ok : .badAccount, parameters.indices.check);
@@ -1009,7 +1014,7 @@ internal class DEAccountCheck : AccountCheck {
 
     case "16", "23":
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.dontMap, .mapToSpecial, .returnDifference], useDigitSum: false);
+                              mappings: [.dontMap, .mapToSpecial, .returnDifference], useDigitSum: false);
       if checksum == 99 {
         switch method {
         case "16":
@@ -1032,7 +1037,7 @@ internal class DEAccountCheck : AccountCheck {
 
     case "24", "B9":
       var checksum = pattern5(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        backwards: method == "B9");
+                              backwards: method == "B9");
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1059,14 +1064,14 @@ internal class DEAccountCheck : AccountCheck {
 
     case "54":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.dontMap, .dontMap, .returnDifference], useDigitSum: false);
+                              mappings: [.dontMap, .dontMap, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
 
     case "56":
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.dontMap, .dontMap, .returnDifference], useDigitSum: false);
+                              mappings: [.dontMap, .dontMap, .returnDifference], useDigitSum: false);
       if number10[0] == 9 {
         if checksum == 10 {
           checksum = 7;
@@ -1090,29 +1095,29 @@ internal class DEAccountCheck : AccountCheck {
       case 0:
         return defaultFalseResult;
 
-      case 51, 55, 61, 64...66, 70, 73...82, 88, 94, 95: // Variant 1.
+      case 51, 55, 61, 64 ... 66, 70, 73 ... 82, 88, 94, 95: // Variant 1.
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .dontMap, .returnDifference]);
+                                mappings: [.mapToZero, .dontMap, .returnDifference]);
         let valid = expectedCheckSum == checksum;
         return (valid, valid ? .ok : .badAccount, parameters.indices.check);
 
-      case 32...39, 41...49, 52...54, 56...60, 62...63, 67...69, 71, 72, 83...86, 89, 90, 92,
-           93, 96...98: // Variant 2.
+      case 32 ... 39, 41 ... 49, 52 ... 54, 56 ... 60, 62 ... 63, 67 ... 69, 71, 72, 83 ... 86, 89, 90, 92,
+           93, 96 ... 98: // Variant 2.
         // The checksum is in digit 2 which must not be included in the computation.
         // But instead we have to include digit 9.
-        workSlice = number10[0...1] + number10[3...9];
+        workSlice = number10[0 ... 1] + number10[3 ... 9];
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .dontMap, .returnDifference]);
+                                mappings: [.mapToZero, .dontMap, .returnDifference]);
         let valid = number10[2] == checksum;
         return (valid, valid ? .ok : .badAccount, parameters.indices.check);
 
       case 40, 50, 91, 99: // Variant 3.
         return defaultTrueResult;
 
-      case 1...31: // Variant 4.
+      case 1 ... 31: // Variant 4.
         let inner1 = number10[2] * 10 + number10[3];
         let inner2 = number10[6] * 100 + number10[7] * 10 + number10[8];
-        if 1...12 ~= inner1 && inner2 < 500 {
+        if 1 ... 12 ~= inner1 && inner2 < 500 {
           return defaultTrueResult;
         }
         return defaultFalseResult;
@@ -1123,7 +1128,7 @@ internal class DEAccountCheck : AccountCheck {
 
     case "61", "62", "63", "C7":
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.dontMap, .dontMap, .returnDifference], backwards: true, useDigitSum: true);
+                              mappings: [.dontMap, .dontMap, .returnDifference], backwards: true, useDigitSum: true);
       if checksum == 10 {
         checksum = 0;
       }
@@ -1133,14 +1138,14 @@ internal class DEAccountCheck : AccountCheck {
 
     case "64":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .mapToZero, .returnDifference], backwards: false, useDigitSum: false);
+                              mappings: [.mapToZero, .mapToZero, .returnDifference], backwards: false, useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
 
     case "66":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToOne, .mapToZero, .returnDifference], useDigitSum: false);
+                              mappings: [.mapToOne, .mapToZero, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1154,11 +1159,11 @@ internal class DEAccountCheck : AccountCheck {
         return (true, .ok, parameters.indices.check);
       }
 
-      if !(9700000000...9799999999 ~= accountAsInt) {
+      if !(9700000000 ... 9799999999 ~= accountAsInt) {
         // Variant 1. Only for numbers outside the range 9 700 000 000 through 9 799 999 999.
         // If that fails, try with variant 2.
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                                mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .ok, parameters.indices.check);
         }
@@ -1166,7 +1171,7 @@ internal class DEAccountCheck : AccountCheck {
 
     case "71":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .mapToOne, .returnDifference], backwards: false, useDigitSum: false);
+                              mappings: [.mapToZero, .mapToOne, .returnDifference], backwards: false, useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1180,7 +1185,7 @@ internal class DEAccountCheck : AccountCheck {
       for subMethod in ["73a", "73b", "73c"] {
         useMethod(subMethod);
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .dontMap, .returnDifference]);
+                                mappings: [.mapToZero, .dontMap, .returnDifference]);
         if expectedCheckSum == checksum {
           return (true, .ok, parameters.indices.check);
         }
@@ -1193,24 +1198,24 @@ internal class DEAccountCheck : AccountCheck {
       var checksumPos = parameters.indices.check;
       if number.count == 9 {
         if number10[1] == 9 {
-          workSlice = number10[2...6];
+          workSlice = number10[2 ... 6];
           checksumPos = 7;
         } else {
-          workSlice = number10[1...5];
+          workSlice = number10[1 ... 5];
           checksumPos = 6;
         }
         expectedCheckSum = number10[checksumPos];
       }
 
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference], backwards: false);
+                              mappings: [.mapToZero, .dontMap, .returnDifference], backwards: false);
       if expectedCheckSum == checksum {
         return (true, .ok, checksumPos);
       }
 
     case "77":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.dontMap, .dontMap, .returnDivByModulus], useDigitSum: false);
+                              mappings: [.dontMap, .dontMap, .returnDivByModulus], useDigitSum: false);
       if checksum == 0 {
         return (true, .ok, parameters.indices.check);
       }
@@ -1225,7 +1230,7 @@ internal class DEAccountCheck : AccountCheck {
         if number10[2] == 9 && number10[3] == 9 {
           useMethod(method + "d");
           let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-            mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                                  mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
           let valid = expectedCheckSum == checksum;
           return (valid, valid ? .ok : .badAccount, parameters.indices.check);
         }
@@ -1234,7 +1239,7 @@ internal class DEAccountCheck : AccountCheck {
       for subMethod in [method + "a", method + "b", method + "c"] {
         useMethod(subMethod);
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                                mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .ok, parameters.indices.check);
         }
@@ -1250,14 +1255,14 @@ internal class DEAccountCheck : AccountCheck {
 
       useMethod("86a");
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference]);
+                              mappings: [.mapToZero, .dontMap, .returnDifference]);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
 
       useMethod("86b");
       checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                          mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1280,14 +1285,14 @@ internal class DEAccountCheck : AccountCheck {
 
       useMethod("87b");
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                              mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
 
       useMethod("87c");
       checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
+                          mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1296,7 +1301,7 @@ internal class DEAccountCheck : AccountCheck {
 
     case "89":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .mapToZero, .returnDifference]);
+                              mappings: [.mapToZero, .mapToZero, .returnDifference]);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1305,7 +1310,7 @@ internal class DEAccountCheck : AccountCheck {
       if number10[2] == 9 {
         useMethod("90f")
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                                mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
         let valid = expectedCheckSum == checksum;
         return (valid, valid ? .ok : .badAccount, parameters.indices.check);
       }
@@ -1313,7 +1318,7 @@ internal class DEAccountCheck : AccountCheck {
       for subMethod in ["90a", "90b"] {
         useMethod(subMethod);
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                                mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .ok, parameters.indices.check);
         }
@@ -1321,7 +1326,7 @@ internal class DEAccountCheck : AccountCheck {
 
       useMethod("90c");
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
+                              mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         if checksum == 7 || checksum == 8 || checksum == 9 {
           return defaultFalseResult; // Even though the checksum is correct those accounts are considered wrong.
@@ -1331,7 +1336,7 @@ internal class DEAccountCheck : AccountCheck {
 
       useMethod("90d");
       checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
+                          mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         if checksum == 9 {
           return defaultFalseResult;
@@ -1342,7 +1347,7 @@ internal class DEAccountCheck : AccountCheck {
       for subMethod in ["90e", "90g"] {
         useMethod(subMethod);
         checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
+                            mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .ok, parameters.indices.check);
         }
@@ -1354,7 +1359,7 @@ internal class DEAccountCheck : AccountCheck {
       for subMethod in ["91a", "91b", "91c", "91d"] {
         useMethod(subMethod);
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                                mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .ok, parameters.indices.check);
         }
@@ -1379,14 +1384,14 @@ internal class DEAccountCheck : AccountCheck {
       if !isSpecial {
         useMethod("A4a");
         var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                                mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .ok, parameters.indices.check);
         }
 
         useMethod("A4b");
         checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
+                            mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .ok, parameters.indices.check);
         }
@@ -1394,7 +1399,7 @@ internal class DEAccountCheck : AccountCheck {
 
       useMethod("A4c");
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                              mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1404,7 +1409,7 @@ internal class DEAccountCheck : AccountCheck {
 
     case "A5":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference]);
+                              mappings: [.mapToZero, .dontMap, .returnDifference]);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1415,7 +1420,7 @@ internal class DEAccountCheck : AccountCheck {
 
     case "B5":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
+                              mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1426,12 +1431,12 @@ internal class DEAccountCheck : AccountCheck {
 
     case "B6":
       var checksum: UInt16;
-      if !(number10[0] != 0 || 02691...02699 ~= intFromRange(number10[0...4])) {
+      if !(number10[0] != 0 || 02691 ... 02699 ~= intFromRange(number10[0 ... 4])) {
         checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                            mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
       } else {
         checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .mapToSpecial, .returnDifference], useDigitSum: false);
+                            mappings: [.mapToZero, .mapToSpecial, .returnDifference], useDigitSum: false);
       }
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
@@ -1439,7 +1444,7 @@ internal class DEAccountCheck : AccountCheck {
 
     case "C8":
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference]);
+                              mappings: [.mapToZero, .dontMap, .returnDifference]);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1447,7 +1452,7 @@ internal class DEAccountCheck : AccountCheck {
       for subMethod in ["C8b", "C8c"] {
         useMethod(subMethod);
         checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .mapToSpecial, .returnDifference], useDigitSum: false);
+                            mappings: [.mapToZero, .mapToSpecial, .returnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .ok, parameters.indices.check);
         }
@@ -1455,14 +1460,14 @@ internal class DEAccountCheck : AccountCheck {
 
     case "D2":
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                              mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
 
       useMethod("D2b");
       checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference]);
+                          mappings: [.mapToZero, .dontMap, .returnDifference]);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1472,7 +1477,7 @@ internal class DEAccountCheck : AccountCheck {
 
     case "D3":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference]);
+                              mappings: [.mapToZero, .dontMap, .returnDifference]);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1483,7 +1488,7 @@ internal class DEAccountCheck : AccountCheck {
       for subMethod in ["D5a", "D5b"] {
         useMethod(subMethod);
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                                mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .ok, parameters.indices.check);
         }
@@ -1496,7 +1501,7 @@ internal class DEAccountCheck : AccountCheck {
       for subMethod in ["D5c", "D5d"] {
         useMethod(subMethod);
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.dontMap, .dontMap, .returnDifference], useDigitSum: false);
+                                mappings: [.dontMap, .dontMap, .returnDifference], useDigitSum: false);
         if expectedCheckSum == checksum {
           return (true, .ok, parameters.indices.check);
         }
@@ -1504,7 +1509,7 @@ internal class DEAccountCheck : AccountCheck {
 
     case "D6":
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .mapToSpecial, .returnDifference], useDigitSum: false);
+                              mappings: [.mapToZero, .mapToSpecial, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1512,7 +1517,7 @@ internal class DEAccountCheck : AccountCheck {
       useMethod("D6b");
       for flag in [false, true] {
         checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: flag);
+                            mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: flag);
         if expectedCheckSum == checksum {
           return (true, .ok, parameters.indices.check);
         }
@@ -1520,7 +1525,7 @@ internal class DEAccountCheck : AccountCheck {
 
     case "D7":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.dontMap, .dontMap, .returnRemainder], useDigitSum: true);
+                              mappings: [.dontMap, .dontMap, .returnRemainder], useDigitSum: true);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1528,28 +1533,28 @@ internal class DEAccountCheck : AccountCheck {
     case "D9":
       useMethod("00");
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference]);
+                              mappings: [.mapToZero, .dontMap, .returnDifference]);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
 
       useMethod("10");
       checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                          mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
 
       useMethod("18");
       checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
+                          mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
 
     case "E0":
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.dontMap, .dontMap, .returnSum], useDigitSum: true);
+                              mappings: [.dontMap, .dontMap, .returnSum], useDigitSum: true);
       checksum = (checksum + 7) % 10;
       if (checksum > 0) {
         checksum = parameters.modulus - checksum;
@@ -1560,7 +1565,7 @@ internal class DEAccountCheck : AccountCheck {
 
     case "E1":
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnRemainder], useDigitSum: false);
+                              mappings: [.mapToZero, .dontMap, .returnRemainder], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1581,7 +1586,7 @@ internal class DEAccountCheck : AccountCheck {
     case "13", "80", "96", "A8", "B5", "C2":
       useMethod(method + "b");
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference]);
+                              mappings: [.mapToZero, .dontMap, .returnDifference]);
       let valid = expectedCheckSum == checksum;
       return (valid, valid ? .ok : .badAccount, parameters.indices.check);
 
@@ -1594,7 +1599,7 @@ internal class DEAccountCheck : AccountCheck {
     case "50", "A3", "A5", "A9", "C0", "C7":
       useMethod(method + "b");
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                              mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
       let valid = expectedCheckSum == checksum;
       return (valid, valid ? .ok : .badAccount, parameters.indices.check);
 
@@ -1602,7 +1607,7 @@ internal class DEAccountCheck : AccountCheck {
       if number10[1] == 0 && number10[2] == 0 {
         useMethod("63b");
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.dontMap, .dontMap, .returnDifference], backwards: true, useDigitSum: true);
+                                mappings: [.dontMap, .dontMap, .returnDifference], backwards: true, useDigitSum: true);
         let valid = expectedCheckSum == checksum;
         return (valid, valid ? .ok : .badAccount, parameters.indices.check);
       }
@@ -1611,7 +1616,7 @@ internal class DEAccountCheck : AccountCheck {
     case "74":
       if number.count == 6 {
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .dontMap, .returnDiff2HalfDecade]);
+                                mappings: [.mapToZero, .dontMap, .returnDiff2HalfDecade]);
         let valid = expectedCheckSum == checksum;
         return (valid, valid ? .ok : .badAccount, parameters.indices.check);
       }
@@ -1621,28 +1626,28 @@ internal class DEAccountCheck : AccountCheck {
       useMethod(method + "b");
       // 00 sub account not given. Actual main number is moved 2 digits to the right.
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.dontMap, .dontMap, .returnRemainder], useDigitSum: false);
+                              mappings: [.dontMap, .dontMap, .returnRemainder], useDigitSum: false);
       let valid = expectedCheckSum == checksum;
       return (valid, valid ? .ok : .badAccount, parameters.indices.check);
 
     case "77":
       useMethod(method + "b");
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDiff2HalfDecade], useDigitSum: false);
+                              mappings: [.mapToZero, .dontMap, .returnDiff2HalfDecade], useDigitSum: false);
       let valid = checksum == 0;
       return (valid, valid ? .ok : .badAccount, parameters.indices.check);
 
     case "A2", "C9":
       useMethod(method + "b");
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .mapToSpecial, .returnDifference], useDigitSum: false);
+                              mappings: [.mapToZero, .mapToSpecial, .returnDifference], useDigitSum: false);
       let valid = expectedCheckSum == checksum;
       return (valid, valid ? .ok : .badAccount, parameters.indices.check);
 
     case "49", "A7", "B1":
       useMethod(method + "b");
       let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
+                              mappings: [.mapToZero, .dontMap, .returnDifference], useDigitSum: false);
       let valid = expectedCheckSum == checksum;
       return (valid, valid ? .ok : .badAccount, parameters.indices.check);
 
@@ -1654,7 +1659,7 @@ internal class DEAccountCheck : AccountCheck {
     case "B9":
       useMethod(method + "b");
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.dontMap, .dontMap, .returnRemainder], useDigitSum: false);
+                              mappings: [.dontMap, .dontMap, .returnRemainder], useDigitSum: false);
       if expectedCheckSum == checksum {
         return (true, .ok, parameters.indices.check);
       }
@@ -1699,73 +1704,73 @@ internal class DEAccountCheck : AccountCheck {
   }
 
   fileprivate class func computeSumRemainder(_ digits: ArraySlice<UInt16>, _ modulus: UInt16, _ weights: [UInt16],
-    _ backwards: Bool, _ useDigitSum: Bool, _ compute: (UInt16, UInt16) -> UInt16) -> (sum: UInt16, remainder: UInt16) {
-      var weightIndex = 0;
-      var sum: UInt16 = 0;
-      let d = backwards ? Array(digits.reversed()) : Array(digits);
+                                             _ backwards: Bool, _ useDigitSum: Bool, _ compute: (UInt16, UInt16) -> UInt16) -> (sum: UInt16, remainder: UInt16) {
+    var weightIndex = 0;
+    var sum: UInt16 = 0;
+    let d = backwards ? Array(digits.reversed()) : Array(digits);
 
-      for digit in d {
-        if weightIndex == weights.count {
-          break;
-        }
-        let product = compute(digit, weights[weightIndex]);
-        weightIndex += 1;
-        if useDigitSum {
-          sum += digitSum(product);
-        } else {
-          sum += product;
-        }
+    for digit in d {
+      if weightIndex == weights.count {
+        break;
       }
-      return (sum, sum % modulus);
+      let product = compute(digit, weights[weightIndex]);
+      weightIndex += 1;
+      if useDigitSum {
+        sum += digitSum(product);
+      } else {
+        sum += product;
+      }
+    }
+    return (sum, sum % modulus);
   }
 
   fileprivate class func pattern1(_ digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16],
-    mappings: [ResultMapping] = [.dontMap, .dontMap, .returnDifference], backwards: Bool = true,
-    useDigitSum: Bool = true) -> UInt16 {
-      let (sum, remainder) = computeSumRemainder(digits, modulus, weights, backwards, useDigitSum,
-        { return $0 * $1; } // Standard computation function.
-      );
+                                  mappings: [ResultMapping] = [.dontMap, .dontMap, .returnDifference], backwards: Bool = true,
+                                  useDigitSum: Bool = true) -> UInt16 {
+    let (sum, remainder) = computeSumRemainder(digits, modulus, weights, backwards, useDigitSum,
+                                               { return $0 * $1; } // Standard computation function.
+    );
 
-      assert(mappings.count >= 3, "Mappings must have at least 3 entries.");
+    assert(mappings.count >= 3, "Mappings must have at least 3 entries.");
 
-      switch remainder {
-      case 0: fallthrough
-      case 1:
-        switch mappings[Int(remainder)] {
-        case .mapToZero:
-          return 0;
-        case .mapToOne:
-          return 1;
-        case .mapToSpecial:
-          return 99;
-        default:
-          break;
-        }
-        fallthrough // Otherwise use the standard computation.
+    switch remainder {
+    case 0: fallthrough
+    case 1:
+      switch mappings[Int(remainder)] {
+      case .mapToZero:
+        return 0;
+      case .mapToOne:
+        return 1;
+      case .mapToSpecial:
+        return 99;
       default:
-        switch mappings[2] {
-        case .returnRemainder:
-          return remainder;
-        case .returnDifference:
-          return modulus - remainder;
-        case .returnDiff2HalfDecade:
-          let offset: UInt16 = sum % 10 < 5 ? 5 : 10; // e.g. 24 -> 25, 27 -> 30
-          return (sum / 10) * 10 + offset - sum;
-        case .returnDivByModulus:
-          return sum / modulus;
-        case .returnSum:
-          return sum;
-
-        default:
-          assert(false, "Invalid mapping used.");
-        }
+        break;
       }
-      return 0; // Never hit.
+    fallthrough // Otherwise use the standard computation.
+    default:
+      switch mappings[2] {
+      case .returnRemainder:
+        return remainder;
+      case .returnDifference:
+        return modulus - remainder;
+      case .returnDiff2HalfDecade:
+        let offset: UInt16 = sum % 10 < 5 ? 5 : 10; // e.g. 24 -> 25, 27 -> 30
+        return (sum / 10) * 10 + offset - sum;
+      case .returnDivByModulus:
+        return sum / modulus;
+      case .returnSum:
+        return sum;
+
+      default:
+        assert(false, "Invalid mapping used.");
+      }
+    }
+    return 0; // Never hit.
   }
 
   fileprivate class func pattern2(_ digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
     let (sum, _) = computeSumRemainder(digits, modulus, weights, backwards, true,
-      { return $0 * $1; }
+                                       { return $0 * $1; }
     );
 
     if sum > 0 {
@@ -1780,7 +1785,7 @@ internal class DEAccountCheck : AccountCheck {
 
   fileprivate class func pattern3(_ digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
     var (sum, _) = computeSumRemainder(digits, modulus, weights, backwards, true,
-      { return $0 * $1; }
+                                       { return $0 * $1; }
     );
 
     while sum > 10 {
@@ -1796,7 +1801,7 @@ internal class DEAccountCheck : AccountCheck {
 
   fileprivate class func pattern4(_ digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
     let (_, remainder) = computeSumRemainder(digits, modulus, weights, backwards, false,
-      { return ($0 * $1) % 10; /* Only use the LSD. */ }
+                                             { return ($0 * $1) % 10; /* Only use the LSD. */ }
     );
 
     if remainder == 0 {
@@ -1807,7 +1812,7 @@ internal class DEAccountCheck : AccountCheck {
 
   fileprivate class func pattern5(_ digits: ArraySlice<UInt16>, modulus: UInt16, weights: [UInt16], backwards: Bool = true) -> UInt16 {
     let (sum, _) = computeSumRemainder(digits, modulus, weights, backwards, false,
-      { return ($0 * $1 + $1) % modulus; }
+                                       { return ($0 * $1 + $1) % modulus; }
     );
 
     return sum % 10; // Only the LSD.
@@ -1821,11 +1826,11 @@ internal class DEAccountCheck : AccountCheck {
 
   fileprivate class func method27(_ accountAsInt: Int, _ number10: [UInt16]) -> Bool {
     if let parameters = methodParameters["27"] {
-      let workSlice = number10[parameters.indices.start...parameters.indices.stop];
+      let workSlice = number10[parameters.indices.start ... parameters.indices.stop];
       let expectedCheckSum = number10[parameters.indices.check];
       if accountAsInt < 1_000_000_000 { // Simple checksum computation only for accounts less than 1 000 000 000.
         let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .dontMap, .returnDifference]);
+                                mappings: [.mapToZero, .dontMap, .returnDifference]);
         if expectedCheckSum == checksum {
           return true;
         }
@@ -1842,16 +1847,16 @@ internal class DEAccountCheck : AccountCheck {
     // However, there's an exception for certain accounts. They use a different 2-step approach.
     if number10[2] == 9 {
       if let parameters = methodParameters["51e"] {
-        let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop], modulus: parameters.modulus,
-          weights: parameters.weights, mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+        let checksum = pattern1(number10[parameters.indices.start ... parameters.indices.stop], modulus: parameters.modulus,
+                                weights: parameters.weights, mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
         if number10[parameters.indices.check] == checksum {
           return true;
         }
       }
 
       if let parameters = methodParameters["51f"] {
-        let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop], modulus: parameters.modulus,
-          weights: parameters.weights, mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+        let checksum = pattern1(number10[parameters.indices.start ... parameters.indices.stop], modulus: parameters.modulus,
+                                weights: parameters.weights, mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
         if number10[parameters.indices.check] == checksum {
           return true;
         }
@@ -1860,24 +1865,24 @@ internal class DEAccountCheck : AccountCheck {
     }
 
     if let parameters = methodParameters["51a"] {
-      let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop], modulus: parameters.modulus,
-        weights: parameters.weights, mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+      let checksum = pattern1(number10[parameters.indices.start ... parameters.indices.stop], modulus: parameters.modulus,
+                              weights: parameters.weights, mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
       if number10[parameters.indices.check] == checksum {
         return true;
       }
     }
 
     if let parameters = methodParameters["51b"] {
-      let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop], modulus: parameters.modulus,
-        weights: parameters.weights, mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+      let checksum = pattern1(number10[parameters.indices.start ... parameters.indices.stop], modulus: parameters.modulus,
+                              weights: parameters.weights, mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
       if number10[parameters.indices.check] == checksum {
         return true;
       }
     }
 
     if let parameters = methodParameters["51c"] {
-      let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop], modulus: parameters.modulus,
-        weights: parameters.weights, mappings: [.mapToZero, .dontMap, .returnDifference]);
+      let checksum = pattern1(number10[parameters.indices.start ... parameters.indices.stop], modulus: parameters.modulus,
+                              weights: parameters.weights, mappings: [.mapToZero, .dontMap, .returnDifference]);
       if number10[parameters.indices.check] == checksum {
         return true;
       }
@@ -1888,8 +1893,8 @@ internal class DEAccountCheck : AccountCheck {
     }
 
     if let parameters = methodParameters["51d"] {
-      let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop], modulus: parameters.modulus,
-        weights: parameters.weights, mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+      let checksum = pattern1(number10[parameters.indices.start ... parameters.indices.stop], modulus: parameters.modulus,
+                              weights: parameters.weights, mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
       if number10[parameters.indices.check] == checksum {
         return true;
       }
@@ -1919,7 +1924,7 @@ internal class DEAccountCheck : AccountCheck {
         workSlice = number[0..<number.count - 1];
       }
       var checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference]);
+                              mappings: [.mapToZero, .dontMap, .returnDifference]);
       if number.last == checksum {
         return true;
       }
@@ -1929,7 +1934,7 @@ internal class DEAccountCheck : AccountCheck {
       weights[5] = 0;
       weights[6] = 0;
       checksum = pattern1(workSlice, modulus: parameters.modulus, weights: weights,
-        mappings: [.mapToZero, .dontMap, .returnDifference]);
+                          mappings: [.mapToZero, .dontMap, .returnDifference]);
       return number.last == checksum;
     }
     return false;
@@ -2048,9 +2053,9 @@ internal class DEAccountCheck : AccountCheck {
   fileprivate class func method93(_ number10: [UInt16]) -> Bool {
     for subMethod in ["93a", "93b", "93c", "93d"] {
       if let parameters = methodParameters[subMethod] {
-        let checksum = pattern1(number10[parameters.indices.start...parameters.indices.stop],
-          modulus: parameters.modulus, weights: parameters.weights,
-          mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+        let checksum = pattern1(number10[parameters.indices.start ... parameters.indices.stop],
+                                modulus: parameters.modulus, weights: parameters.weights,
+                                mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
         if number10[parameters.indices.check] == checksum {
           return true;
         }
@@ -2064,15 +2069,15 @@ internal class DEAccountCheck : AccountCheck {
     // Start with constructing the old ESER account number from the given parameters.
     // At most 12 digits long.
     switch number.count {
-    case 8...9: // Standard computation only for 8 and 9 digits.
+    case 8 ... 9: // Standard computation only for 8 and 9 digits.
       break;
     case 10:
       if number[0] == 9 { // Use method "20" for these numbers.
         // Documentation is not clear here. Only use 20 with 52's params or with 20's params?
         if let parameters = methodParameters["20"] {
-          let workSlice = number[parameters.indices.start...parameters.indices.stop];
+          let workSlice = number[parameters.indices.start ... parameters.indices.stop];
           let checksum = pattern1(workSlice, modulus: parameters.modulus, weights: parameters.weights,
-            mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
+                                  mappings: [.mapToZero, .mapToZero, .returnDifference], useDigitSum: false);
           return number[parameters.indices.check] == checksum;
         } else {
           return false;
@@ -2138,7 +2143,7 @@ internal class DEAccountCheck : AccountCheck {
           bankCode = String(entry.bankCode);
           return true;
         } else {
-          if (entry.rangeStart == 0) || (entry.rangeStart...entry.rangeEnd ~= Int(account)!) {
+          if (entry.rangeStart == 0) || (entry.rangeStart ... entry.rangeEnd ~= Int(account)!) {
             if entry.account > 0 {
               account = String(entry.account);
             }
@@ -2174,7 +2179,7 @@ internal class DEAccountCheck : AccountCheck {
         continue;
       }
       for entry in mappingTuple.1.details {
-        if entry.rangeStart...entry.rangeEnd ~= account {
+        if entry.rangeStart ... entry.rangeEnd ~= account {
           return entry.bankCode;
         }
       }

@@ -1,21 +1,21 @@
 /**
-* Copyright (c) 2014, 2017, Mike Lischke. All rights reserved.
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License as
-* published by the Free Software Foundation; version 2 of the
-* License.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
-* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-* 02110-1301  USA
-*/
+ * Copyright (c) 2014, 2019, Mike Lischke. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; version 2 of the
+ * License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301  USA
+ */
 
 import Cocoa
 import XCTest
@@ -31,7 +31,7 @@ class IBANtoolsTests: XCTestCase {
     super.tearDown()
   }
 
-  func testisValidIBAN() {
+  func testIsValidIBAN() {
     XCTAssertFalse(IBANtools.isValidIBAN("532013018"));
     XCTAssert(IBANtools.isValidIBAN("DE10100900440532013018"));
 
@@ -197,11 +197,11 @@ class IBANtoolsTests: XCTestCase {
       var accountNumber = entry.account;
       var bankCodeNumber = entry.bank;
       if let details = countryData[entry.code] {
-        if accountNumber.characters.count < details.accountLength {
-          accountNumber = String(repeating: "0", count: details.accountLength - accountNumber.characters.count) + accountNumber;
+        if accountNumber.count < details.accountLength {
+          accountNumber = String(repeating: "0", count: details.accountLength - accountNumber.count) + accountNumber;
         }
-        if bankCodeNumber.characters.count < details.bankCodeLength {
-          bankCodeNumber = String(repeating: "0", count: details.bankCodeLength - bankCodeNumber.characters.count) + bankCodeNumber;
+        if bankCodeNumber.count < details.bankCodeLength {
+          bankCodeNumber = String(repeating: "0", count: details.bankCodeLength - bankCodeNumber.count) + bankCodeNumber;
         }
       }
       let expected = entry.code + entry.checksum + bankCodeNumber + accountNumber;

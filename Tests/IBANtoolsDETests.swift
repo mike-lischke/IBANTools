@@ -50,7 +50,7 @@ class IBANtoolsDETests: XCTestCase {
     var account = account, bank = bank
 
       let ibanResult = IBANtools.convertToIBAN(&account, bankCode: &bank, countryCode: country, validateAccount: checkAccount);
-      if ibanResult.iban.characters.count == 0 {
+      if ibanResult.iban.count == 0 {
         let result = (ibanResult.iban == expected.iban) && (ibanResult.result == expected.ibanResult);
         if !result {
           print("\naccount: \(account), bank: \(bank), expected: (\(expected.0), " +

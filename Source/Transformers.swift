@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016, 2017, Mike Lischke. All rights reserved.
+ * Copyright (c) 2016, 2019, Mike Lischke. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -25,18 +25,19 @@ open class IBANTransformer : ValueTransformer {
 
   open var countryCode = "de";
 
-  open static override func allowsReverseTransformation() -> Bool {
+  open class override func allowsReverseTransformation() -> Bool {
     return true;
   }
 
   open override func transformedValue(_ value: Any?) -> Any? {
     if let data = countryData[countryCode.uppercased()] {
       let requiredLength = 4 + data.accountLength + data.bankCodeLength;
-      if let iban = value as? String, iban.characters.count >= requiredLength {
-        return iban.substring(with: (iban.startIndex ..< iban.characters.index(iban.startIndex, offsetBy: 2))) + " " + // Country code.
-          iban.substring(with: (iban.characters.index(iban.startIndex, offsetBy: 2) ..< iban.characters.index(iban.startIndex, offsetBy: 4))) + " " + // Check sum.
-          iban.substring(with: (iban.characters.index(iban.startIndex, offsetBy: 4) ..< iban.characters.index(iban.startIndex, offsetBy: data.accountLength))) + " " + // Account number.
-          iban.substring(from: iban.characters.index(iban.startIndex, offsetBy: data.accountLength + 4)); // The rest.
+      if let iban = value as? String, iban.count >= requiredLength {
+        var result = iban[iban.startIndex ..< iban.index(iban.startIndex, offsetBy: 2)] + " "; // Country code.
+        result += iban[iban.index(iban.startIndex, offsetBy: 2) ..< iban.index(iban.startIndex, offsetBy: 4)] + " "; // Check sum.
+        result += iban[iban.index(iban.startIndex, offsetBy: 4) ..< iban.index(iban.startIndex, offsetBy: data.accountLength)] + " "; // Account number.
+        result += iban[iban.index(iban.startIndex, offsetBy: data.accountLength + 4)...]; // The rest.
+        return result;
       }
     }
     return value;

@@ -1,21 +1,21 @@
 /**
-* Copyright (c) 2014, 2017, Mike Lischke. All rights reserved.
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License as
-* published by the Free Software Foundation; version 2 of the
-* License.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
-* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-* 02110-1301  USA
-*/
+ * Copyright (c) 2014, 2019, Mike Lischke. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; version 2 of the
+ * License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301  USA
+ */
 
 import Foundation
 import AppKit
@@ -47,8 +47,29 @@ internal class DERules : IBANRules {
   typealias RuleResult = (account: String, bankCode: String, iban: String, result: IBANToolsResult);
   typealias RuleClosure = (String, String, Int) -> RuleResult;
 
-  static fileprivate var institutes: [Int: BankEntry] = [:];
-  static fileprivate var bicToBankCode: [String: Int] = [:]; // Reverse lookup.
+  static fileprivate var _institutes: [Int: BankEntry] = [:];
+
+  class fileprivate var institutes : [Int: BankEntry] {
+    if (_institutes.count == 0) {
+      let bundle = Bundle(for: DERules.self);
+      if let resourcePath = bundle.path(forResource: "bank_codes", ofType: "txt", inDirectory: "de") {
+        loadData((resourcePath as NSString).deletingLastPathComponent);
+      }
+    }
+    return _institutes;
+  }
+
+  static fileprivate var _bicToBankCode: [String: Int] = [:]; // Reverse lookup.
+
+  class fileprivate var bicToBankCode: [String: Int] {
+    if (_bicToBankCode.count == 0) {
+      let bundle = Bundle(for: DERules.self);
+      if let resourcePath = bundle.path(forResource: "bank_codes", ofType: "txt", inDirectory: "de") {
+        loadData((resourcePath as NSString).deletingLastPathComponent);
+      }
+    }
+    return _bicToBankCode;
+  }
 
   // An array of rules. The signature is a bit complicated because some rules only modify
   // the account number or the bank code, but otherwise use the default IBAN creation rule.
@@ -119,25 +140,16 @@ internal class DERules : IBANRules {
     82411908, 82511908, 82611908, 82711908, 82811908, 82911908, 99624044, 300143869,
   ];
 
-  override class func initialize() {
-    super.initialize();
-
-    let bundle = Bundle(for: DERules.self);
-    if let resourcePath = bundle.path(forResource: "bank_codes", ofType: "txt", inDirectory: "de") {
-      loadData((resourcePath as NSString).deletingLastPathComponent);
-    }
-  }
-
   fileprivate class func fillZKADetails(_ entry: inout BankEntry, details: [String]) -> Void {
     var version = details[8];
-    if version.characters.count > 0 {
+    if version.count > 0 {
       // Convert x.y to xy0 form (e.g. 2.2 to 220).
-      version.remove(at: version.characters.index(version.startIndex, offsetBy: 1));
+      version.remove(at: version.index(version.startIndex, offsetBy: 1));
       entry.hbciVersion = version + "0";
     }
 
     version = details[24];
-    if version.characters.count > 0 {
+    if version.count > 0 {
       // Special format here. So do a simple mapping of the few possible values.
       if version == "FinTS V3.0" {
         entry.pinTanVersion = "300";
@@ -155,7 +167,7 @@ internal class DERules : IBANRules {
     entry.pinTanURL = details[23];
 
     // Usually the ZKA file has preciser bank names, so we use them if available.
-    if details[2].characters.count > 0 {
+    if details[2].count > 0 {
       entry.name = details[2];
     }
   }
@@ -173,13 +185,13 @@ internal class DERules : IBANRules {
         var firstLineSkipped = false;
         for line in content.components(separatedBy: CharacterSet.newlines) {
           let s = (line as NSString).trimmingCharacters(in: CharacterSet.whitespaces);
-          if s.characters.count == 0 || !firstLineSkipped {
+          if s.count == 0 || !firstLineSkipped {
             firstLineSkipped = true;
             continue;
           }
 
           let values = s.components(separatedBy: ";");
-          if values.count > 1 && values[1].characters.count > 0 {
+          if values.count > 1 && values[1].count > 0 {
             zkaData[Int(values[1])!] = values;
           }
         }
@@ -193,8 +205,8 @@ internal class DERules : IBANRules {
     if FileManager.default.fileExists(atPath: path + "/bank_codes.txt") {
       do {
         let content = try NSString(contentsOfFile: path + "/bank_codes.txt", encoding: String.Encoding.utf8.rawValue)
-        institutes = [:];
-        bicToBankCode = [:];
+        _institutes = [:];
+        _bicToBankCode = [:];
 
         // Extract bank code details.
         for line in content.components(separatedBy: CharacterSet.newlines) {
@@ -205,26 +217,28 @@ internal class DERules : IBANRules {
 
           // 1 for the primary institute or subsidiary, 2 for additional subsidiaries that
           // should not take part in the payments. They share the same bank code anyway.
-          let mark = Int(line[line.characters.index(line.startIndex, offsetBy: 8)...line.characters.index(line.startIndex, offsetBy: 8)]);
+          let mark = Int(line[line.index(line.startIndex, offsetBy: 8) ... line.index(line.startIndex, offsetBy: 8)]);
           if mark == 2 {
             continue;
           }
 
           var entry = BankEntry();
 
-          let bankCode = Int(line[line.startIndex..<line.characters.index(line.startIndex, offsetBy: 8)])!;
-          entry.name = line[line.characters.index(line.startIndex, offsetBy: 9)..<line.characters.index(line.startIndex, offsetBy: 67)].trimmingCharacters(in: CharacterSet.whitespaces);
-          entry.postalCode = line[line.characters.index(line.startIndex, offsetBy: 67)..<line.characters.index(line.startIndex, offsetBy: 72)];
-          entry.place = line[line.characters.index(line.startIndex, offsetBy: 72)..<line.characters.index(line.startIndex, offsetBy: 107)].trimmingCharacters(in: CharacterSet.whitespaces);
-          entry.bic = line[line.characters.index(line.startIndex, offsetBy: 139)..<line.characters.index(line.startIndex, offsetBy: 150)];
-          entry.checksumMethod = line[line.characters.index(line.startIndex, offsetBy: 150)..<line.characters.index(line.startIndex, offsetBy: 152)];
-          entry.isDeleted = line[line.characters.index(line.startIndex, offsetBy: 158)] == "D";
-          entry.replacement = Int(line[line.characters.index(line.startIndex, offsetBy: 160)..<line.characters.index(line.startIndex, offsetBy: 168)])!;
+          let bankCode = Int(line[line.startIndex..<line.index(line.startIndex, offsetBy: 8)])!;
+          entry.name = line[line.index(line.startIndex, offsetBy: 9) ..< line.index(line.startIndex, offsetBy: 67)]
+            .trimmingCharacters(in: CharacterSet.whitespaces);
+          entry.postalCode = String(line[line.index(line.startIndex, offsetBy: 67) ..< line.index(line.startIndex, offsetBy: 72)]);
+          entry.place = line[line.index(line.startIndex, offsetBy: 72) ..< line.index(line.startIndex, offsetBy: 107)]
+            .trimmingCharacters(in: CharacterSet.whitespaces);
+          entry.bic = String(line[line.index(line.startIndex, offsetBy: 139) ..< line.index(line.startIndex, offsetBy: 150)]);
+          entry.checksumMethod = String(line[line.index(line.startIndex, offsetBy: 150) ..< line.index(line.startIndex, offsetBy: 152)]);
+          entry.isDeleted = line[line.index(line.startIndex, offsetBy: 158)] == "D";
+          entry.replacement = Int(line[line.index(line.startIndex, offsetBy: 160) ..< line.index(line.startIndex, offsetBy: 168)])!;
 
           if s.length > 168 {
             // Extended bank code file.
-            entry.rule = Int(line[line.characters.index(line.startIndex, offsetBy: 168)..<line.characters.index(line.startIndex, offsetBy: 172)])!;
-            entry.ruleVersion = Int(line[line.characters.index(line.startIndex, offsetBy: 172)..<line.characters.index(line.startIndex, offsetBy: 174)])!;
+            entry.rule = Int(line[line.index(line.startIndex, offsetBy: 168) ..< line.index(line.startIndex, offsetBy: 172)])!;
+            entry.ruleVersion = Int(line[line.index(line.startIndex, offsetBy: 172) ..< line.index(line.startIndex, offsetBy: 174)])!;
           }
 
           // Look for additional info in the ZKA dataset. If an entry can be found for the given
@@ -235,8 +249,8 @@ internal class DERules : IBANRules {
             zkaData.removeValue(forKey: bankCode);
           }
 
-          institutes[bankCode] = entry;
-          bicToBankCode[entry.bic] = bankCode; // Note: this is not unique! There can be more than one bank code for a BIC.
+          _institutes[bankCode] = entry;
+          _bicToBankCode[entry.bic] = bankCode; // Note: this is not unique! There can be more than one bank code for a BIC.
         }
       } catch let error as NSError {
         let alert = NSAlert.init(error: error);
@@ -263,21 +277,21 @@ internal class DERules : IBANRules {
         fillZKADetails(&entry, details: zkaDetails);
 
         // No reverse lookup via BIC. The ZKA file doesn't contain BICs.
-        institutes[bankCode] = entry;
+        _institutes[bankCode] = entry;
       }
     }
   }
 
   override class func onlineDetailsForBIC(_ bic: String) -> (hbciVersion: String, pinTanVersion: String, hostURL: String, pinTanURL: String) {
-    var bic = bic
     if let bankCode = bicToBankCode[bic], let entry = institutes[bankCode] {
       return (entry.hbciVersion, entry.pinTanVersion, entry.hostURL, entry.pinTanURL);
     }
 
     if !bic.hasSuffix("XXX") {
       // Try the generic form (no subsidary) if we couldn't find an entry.
-      bic = (bic as NSString).substring(to: bic.characters.count - 3) + "XXX";
-      if let bankCode = bicToBankCode[bic], let entry = institutes[bankCode] {
+      let endIndex = bic.index(bic.endIndex, offsetBy: -3);
+      let bicPart = String(bic[..<endIndex]) + "XXX";
+      if let bankCode = bicToBankCode[bicPart], let entry = institutes[bankCode] {
         return (entry.hbciVersion, entry.pinTanVersion, entry.hostURL, entry.pinTanURL);
       }
     }
@@ -471,7 +485,7 @@ internal class DERules : IBANRules {
             } else {
               if bankString.hasPrefix("502101") || bankString.hasPrefix("505101") { // SEB AG.
                 let suffix = bank % 100;
-                if (bankString.hasPrefix("502101") && 30...89 ~= suffix) || (20...80 ~= suffix) {
+                if (bankString.hasPrefix("502101") && 30 ... 89 ~= suffix) || (20 ... 80 ~= suffix) {
                   institute.bic = "ESSEDE5FXXX";
                 }
               }
@@ -479,7 +493,7 @@ internal class DERules : IBANRules {
           }
         }
 
-        if institute.bic.characters.count > 0 { // Some institutes don't have a BIC (if data comes from ZKA).
+        if institute.bic.count > 0 { // Some institutes don't have a BIC (if data comes from ZKA).
           return (institute.bic, .ok);
         }
       }
@@ -509,11 +523,11 @@ internal class DERules : IBANRules {
 
   fileprivate class func rule2(_ account: String, bankCode: String, version: Int) -> RuleResult {
     // No IBANs for nnnnnnn86n and nnnnnnn6nn.
-    if account[account.characters.index(account.endIndex, offsetBy: -3)] == "6" {
+    if account[account.index(account.endIndex, offsetBy: -3)] == "6" {
       return (account, bankCode, "", .noConversion);
     }
 
-    if (account[account.characters.index(account.endIndex, offsetBy: -2)] == "6") && (account[account.characters.index(account.endIndex, offsetBy: -3)] == "8") {
+    if (account[account.index(account.endIndex, offsetBy: -2)] == "6") && (account[account.index(account.endIndex, offsetBy: -3)] == "8") {
       return (account, bankCode, "", .noConversion);
     }
 
@@ -537,14 +551,14 @@ internal class DERules : IBANRules {
 
     let number = Int(account)!;
 
-    if bankCodes5.contains(code) && 0998000000...0999499999 ~= number {
+    if bankCodes5.contains(code) && 0998000000 ... 0999499999 ~= number {
         return (account, bankCode, "", .noConversion);
     }
 
     let temp = String(number); // Like the original account number but without leading zeros.
 
     let checksumMethod = checkSumMethodForInstitute(bankCode);
-    if checksumMethod == "13" && 6...7 ~= temp.characters.count {
+    if checksumMethod == "13" && 6 ... 7 ~= temp.count {
       account += "00"; // Always assumed the sub account number is missing.
     }
 
@@ -610,8 +624,8 @@ internal class DERules : IBANRules {
       }
     }
 
-    switch account.characters.count {
-    case 1...4:
+    switch account.count {
+    case 1 ... 4:
       return (account, bankCode, "", .noConversion);
     case 7:
       // Check first as if the sub account where missing.
@@ -649,7 +663,7 @@ internal class DERules : IBANRules {
     var account = account
     let accountAsInt = Int(account)!;
     account = String(accountAsInt); // Remove any leading 0.
-    if account.characters.count == 10 {
+    if account.count == 10 {
       account = "0" + (account as NSString).substring(to: 3) + (account as NSString).substring(from: 4);
     }
     return (account, bankCode, "", .defaultIBAN);
@@ -659,7 +673,7 @@ internal class DERules : IBANRules {
     var account = account, bankCode = bankCode
     let accountAsInt = Int(account)!;
     account = String(accountAsInt);
-    if account.characters.count < 10 { // Rule only valid for 10 digits account numbers.
+    if account.count < 10 { // Rule only valid for 10 digits account numbers.
       return (account, bankCode, "", .noConversion);
     }
 
@@ -673,7 +687,7 @@ internal class DERules : IBANRules {
   private class func rule323435(_ account: String, bankCode: String, version: Int) -> RuleResult {
     var bankCode = bankCode
     let accountAsInt = Int(account)!;
-    if 800_000_000...899_999_999 ~= accountAsInt {
+    if 800_000_000 ... 899_999_999 ~= accountAsInt {
       return (account, bankCode, "", .noConversion);
     }
 
@@ -698,12 +712,12 @@ internal class DERules : IBANRules {
     var account = account
     let accountAsInt = Int(account)!;
     switch accountAsInt {
-    case 0...999999:
+    case 0 ... 999999:
       account = String(accountAsInt) + "000";
 
-    case 0000000000...0000099999, 0000900000...0029999999, 0060000000...0099999999,
-         0900000000...0999999999, 2000000000...2999999999, 7100000000...8499999999,
-         8600000000...8999999999:
+    case 0000000000 ... 0000099999, 0000900000 ... 0029999999, 0060000000 ... 0099999999,
+         0900000000 ... 0999999999, 2000000000 ... 2999999999, 7100000000 ... 8499999999,
+         8600000000 ... 8999999999:
       return (account, bankCode, "", .noConversion);
       
     default:
@@ -737,15 +751,15 @@ internal class DERules : IBANRules {
 
   fileprivate class func rule42(_ account: String, bankCode: String, version: Int) -> RuleResult {
     let accountAsInt = Int(account)!;
-    if !(10000000...99999999 ~= accountAsInt) { // Only accounts with 8 digits are valid.
+    if !(10000000 ... 99999999 ~= accountAsInt) { // Only accounts with 8 digits are valid.
       return (account, bankCode, "", .noConversion);
     }
 
-    if 0...999 ~= (accountAsInt % 100000) { // No IBAN for nnn 0 0000 through nnn 0 0999.
+    if 0 ... 999 ~= (accountAsInt % 100000) { // No IBAN for nnn 0 0000 through nnn 0 0999.
       return (account, bankCode, "", .noConversion);
     }
 
-    if 50462000...50463999 ~= accountAsInt || 50469000...50469999 ~= accountAsInt {
+    if 50462000 ... 50463999 ~= accountAsInt || 50469000 ... 50469999 ~= accountAsInt {
       return (account, bankCode, "", .defaultIBAN);
     }
 
@@ -776,7 +790,9 @@ internal class DERules : IBANRules {
   private class func rule47(_ account: String, bankCode: String, version: Int) -> RuleResult {
     var account = account
     let accountAsInt = Int(account)!;
-    if 10000000...99999999 ~= accountAsInt { // 8 digit accounts must be right-justified, instead of the usual left alignment.
+
+    // Eight digits accounts must be right-justified, instead of the usual left alignment.
+    if 10000000 ... 99999999 ~= accountAsInt {
       account = String(accountAsInt) + "00";
     }
     return (account, bankCode, "", .defaultIBAN);
@@ -787,8 +803,8 @@ internal class DERules : IBANRules {
     if bankCode == "30060010" || bankCode == "40060000" || bankCode == "57060000" {
       let accountAsInt = Int(account)!;
       account = String(accountAsInt);
-      if account.characters.count < 10 {
-        account = String(repeating: "0", count: 10 - account.characters.count) + account;
+      if account.count < 10 {
+        account = String(repeating: "0", count: 10 - account.count) + account;
       }
       let s = account as NSString;
       if s.character(at: 4) == 0x39 {
