@@ -17,9 +17,15 @@
  * 02110-1301  USA
  */
 
-import Cocoa
 import XCTest
+
+#if os(macOS)
+import Cocoa
 import IBANtools
+#else
+import Foundation
+import IBANtools_iOS
+#endif
 
 class IBANtoolsTests: XCTestCase {
 

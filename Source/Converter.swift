@@ -18,7 +18,6 @@
  */
 
 import Foundation
-import AppKit
 
 @objc public enum IBANToolsResult: Int {
   case defaultIBAN // The default rule for generating an IBAN was used.
@@ -204,9 +203,7 @@ open class IBANtools: NSObject {
         }
       }
       catch let error as NSError {
-        let alert = NSAlert.init(error: error);
-        alert.runModal();
-        return;
+        fatalError("Unable to load eu_all_mfi.txt with error \(error)")
       }
     }
   }

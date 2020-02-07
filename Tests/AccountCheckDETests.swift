@@ -18,7 +18,12 @@
 */
 
 import XCTest
+
+#if os(macOS)
 import IBANtools
+#else
+import IBANtools_iOS
+#endif
 
 class AccountCheckDETests: XCTestCase {
 

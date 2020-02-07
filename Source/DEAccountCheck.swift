@@ -18,7 +18,6 @@
  */
 
 import Foundation
-import AppKit
 
 @objc(DEAccountCheck)
 internal class DEAccountCheck : AccountCheck {
@@ -459,9 +458,7 @@ internal class DEAccountCheck : AccountCheck {
           }
         }
       } catch let error as NSError {
-        let alert = NSAlert.init(error: error);
-        alert.runModal();
-        return;
+        fatalError("Unable to load bundle: \(error)")
       }
     }
   }
@@ -1904,7 +1901,7 @@ internal class DEAccountCheck : AccountCheck {
   }
 
   private class func method68(_ number: [UInt16]) -> Bool {
-    var number = number
+    let number = number
     if number.count == 9 && number[0] == 4 {
       return true;
     }
@@ -2088,7 +2085,7 @@ internal class DEAccountCheck : AccountCheck {
     }
 
     // Code for method 52 and 53 differes only in handling for 8 and 9 digit account numbers.
-    var temp = [UInt16](bankCode.utf16);
+    let temp = [UInt16](bankCode.utf16);
     var eserAccount: [UInt16] = [];
     for n in temp[temp.count - 4..<temp.count] {
       eserAccount.append(n - 48);

@@ -18,7 +18,6 @@
  */
 
 import Foundation
-import AppKit
 
 // IBAN conversion rules specific to Germany.
 
@@ -196,9 +195,7 @@ internal class DERules : IBANRules {
           }
         }
       } catch let error as NSError {
-        let alert = NSAlert.init(error: error);
-        alert.runModal();
-        return;
+        fatalError("Failed to load data \(error)")
       }
     }
 
@@ -253,9 +250,7 @@ internal class DERules : IBANRules {
           _bicToBankCode[entry.bic] = bankCode; // Note: this is not unique! There can be more than one bank code for a BIC.
         }
       } catch let error as NSError {
-        let alert = NSAlert.init(error: error);
-        alert.runModal();
-        return;
+        fatalError("Failed to load DERCodes.txt \(error)")
       }
 
 
