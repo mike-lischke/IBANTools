@@ -18,7 +18,6 @@
  */
 
 import Foundation
-import AppKit
 
 @objc public enum IBANToolsResult: Int {
   case defaultIBAN // The default rule for generating an IBAN was used.
@@ -142,71 +141,64 @@ open class IBANtools: NSObject {
 
   fileprivate class func loadData(_ path: String) {
     if FileManager.default.fileExists(atPath: path + "/eu_all_mfi.txt") {
-      do {
-        let content = try NSString(contentsOfFile: path + "/eu_all_mfi.txt", encoding: String.Encoding.utf8.rawValue);
-        let bundle = Bundle(for: IBANtools.self);
+      guard let content = try? NSString(contentsOfFile: path + "/eu_all_mfi.txt", encoding: String.Encoding.utf8.rawValue) else { /* TODO: Return an error code */ return }
+      let bundle = Bundle(for: IBANtools.self);
 
-        usedPath = path + "/eu_all_mfi.txt";
-        _institutesInfo = [:];
+      usedPath = path + "/eu_all_mfi.txt";
+      _institutesInfo = [:];
 
-        // Extract institute details.
-        for line in content.components(separatedBy: CharacterSet.newlines) {
-          let s: NSString = line as NSString;
-          let entry = s.components(separatedBy: "\t") ;
-          if entry.count == 0 {
-            continue;
-          }
-          if entry[0] == "MFI_ID" {
-            continue; // Header line.
-          }
-
-          // The ECB MFI file doesn't contain PIN/TAN URLs or HBCI/FinTS version numbers used
-          // by a specific bank, so we ask the country specific classes for that info.
-          // This can potentially return invalid info, if there are multiple bank codes for the given BIC
-          // with different online details (in that case the last loaded record is returned).
-          var hbciVersion = "";
-          var pinTanVersion = "";
-          var hostURL = "";
-          var pinTanURL = "";
-          if let clazz: AnyClass = bundle.classNamed(entry[2] + "Rules"), entry[1].count > 0 {
-            let rulesClass = clazz as! IBANRules.Type;
-            (hbciVersion, pinTanVersion, hostURL, pinTanURL) = rulesClass.onlineDetailsForBIC(entry[1]);
-          }
-
-          let info = InstituteInfo();
-          info.mfiID = entry[0];
-          info.bic = entry[1];
-          info.countryCode = entry[2];
-          info.name = entry[3];
-          info.box = entry[4]
-          info.address = entry[5];
-          info.postal = entry[6];
-          info.city = entry[7];
-          info.category = entry[8];
-          info.domicile = entry[9];
-          info.headName = entry[11];
-          info.reserve = entry[12] == "Yes";
-          info.exempt = entry[13] == "Yes";
-
-          info.hbciVersion = hbciVersion;
-          info.pinTanVersion = pinTanVersion;
-          info.hostURL = hostURL;
-          info.pinTanURL = pinTanURL;
-
-          // Many entries in the file have no BIC and a few use the same BIC. In both cases
-          // we use the MFI ID instead (which is unique). We may later find a way to get the MFI ID
-          // from a BIC.
-          var key = entry[1].count > 0 ? entry[1] : entry[0];
-          if _institutesInfo[key] != nil {
-            key = entry[0];
-          }
-          _institutesInfo[key] = info; // Info keyed by BIC or (if the bic is empty/duplicate) by MFI ID.
+      // Extract institute details.
+      for line in content.components(separatedBy: CharacterSet.newlines) {
+        let s: NSString = line as NSString;
+        let entry = s.components(separatedBy: "\t") ;
+        if entry.count == 0 {
+          continue;
         }
-      }
-      catch let error as NSError {
-        let alert = NSAlert.init(error: error);
-        alert.runModal();
-        return;
+        if entry[0] == "MFI_ID" {
+          continue; // Header line.
+        }
+
+        // The ECB MFI file doesn't contain PIN/TAN URLs or HBCI/FinTS version numbers used
+        // by a specific bank, so we ask the country specific classes for that info.
+        // This can potentially return invalid info, if there are multiple bank codes for the given BIC
+        // with different online details (in that case the last loaded record is returned).
+        var hbciVersion = "";
+        var pinTanVersion = "";
+        var hostURL = "";
+        var pinTanURL = "";
+        if let clazz: AnyClass = bundle.classNamed(entry[2] + "Rules"), entry[1].count > 0 {
+          let rulesClass = clazz as! IBANRules.Type;
+          (hbciVersion, pinTanVersion, hostURL, pinTanURL) = rulesClass.onlineDetailsForBIC(entry[1]);
+        }
+
+        let info = InstituteInfo();
+        info.mfiID = entry[0];
+        info.bic = entry[1];
+        info.countryCode = entry[2];
+        info.name = entry[3];
+        info.box = entry[4]
+        info.address = entry[5];
+        info.postal = entry[6];
+        info.city = entry[7];
+        info.category = entry[8];
+        info.domicile = entry[9];
+        info.headName = entry[11];
+        info.reserve = entry[12] == "Yes";
+        info.exempt = entry[13] == "Yes";
+
+        info.hbciVersion = hbciVersion;
+        info.pinTanVersion = pinTanVersion;
+        info.hostURL = hostURL;
+        info.pinTanURL = pinTanURL;
+
+        // Many entries in the file have no BIC and a few use the same BIC. In both cases
+        // we use the MFI ID instead (which is unique). We may later find a way to get the MFI ID
+        // from a BIC.
+        var key = entry[1].count > 0 ? entry[1] : entry[0];
+        if _institutesInfo[key] != nil {
+          key = entry[0];
+        }
+        _institutesInfo[key] = info; // Info keyed by BIC or (if the bic is empty/duplicate) by MFI ID.
       }
     }
   }
