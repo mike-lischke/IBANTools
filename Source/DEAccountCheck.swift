@@ -320,145 +320,141 @@ internal class DEAccountCheck : AccountCheck {
 
   override class func loadData(_ path: String) {
     if FileManager.default.fileExists(atPath: path + "/mappings.txt") {
-      do {
-        let content = try NSString(contentsOfFile: path + "/mappings.txt", encoding: String.Encoding.utf8.rawValue);
+      guard let content = try? NSString(contentsOfFile: path + "/mappings.txt", encoding: String.Encoding.utf8.rawValue) else { /* TODO: Return an error code */ return }
 
-        _mappings = [:];
+      _mappings = [:];
 
-        var sourceBankCode: NSString = "";
-        var rule = 0;
-        var entry: MappingDetails = (0, 0, 0, 0);
+      var sourceBankCode: NSString = "";
+      var rule = 0;
+      var entry: MappingDetails = (0, 0, 0, 0);
 
-        var sourceBankCodeIndex = -1;
-        var sourceAccountIndex = -1;
-        var sourceAccountStartIndex = -1;
-        var sourceAccountEndIndex = -1;
-        var targetBankCodeIndex = -1;
-        var targetAccountIndex = -1;
+      var sourceBankCodeIndex = -1;
+      var sourceAccountIndex = -1;
+      var sourceAccountStartIndex = -1;
+      var sourceAccountEndIndex = -1;
+      var targetBankCodeIndex = -1;
+      var targetAccountIndex = -1;
 
-        for line in content.components(separatedBy: CharacterSet.newlines) {
-          var s: NSString = line as NSString;
-          s = s.trimmingCharacters(in: CharacterSet.whitespaces) as NSString;
-          if s.length == 0 || s.hasPrefix("//")  || s.hasPrefix("#"){
-            continue; // Ignore empty and comment lines.
-          }
-
-          if s.hasPrefix("[") {
-            // Format specifier.
-            entry = (0, 0, 0, 0);
-            sourceBankCodeIndex = -1;
-            sourceAccountIndex = -1;
-            sourceAccountStartIndex = -1;
-            sourceAccountEndIndex = -1;
-            targetBankCodeIndex = -1;
-            targetAccountIndex = -1;
-
-            s = s.substring(with: NSMakeRange(1, s.length - 2)) as NSString;
-            var index = 0;
-            for part in s.components(separatedBy: CharacterSet.whitespaces) {
-              let p = part as NSString;
-              if !p.hasPrefix("#") && p != "_" {
-                rule = Int(part)!;
-                continue;
-              }
-
-              if p == "_" {
-                index += 1;
-                continue;
-              }
-
-              let explicitValue = p.substring(from: 3) as NSString;
-              switch p.substring(to: 3) {
-              case "#sc":
-                if explicitValue.length > 0 {
-                  sourceBankCode = (explicitValue as NSString);
-                  sourceBankCodeIndex = -1;
-                } else {
-                  sourceBankCodeIndex = index; index += 1;
-                }
-              case "#sa":
-                if explicitValue.length > 0 {
-                  entry.rangeStart = Int((explicitValue as String))!;
-                  entry.rangeEnd = entry.rangeStart;
-                  sourceAccountIndex = -1;
-                } else {
-                  sourceAccountIndex = index; index += 1;
-                }
-              case "#ss":
-                if explicitValue.length > 0 {
-                  entry.rangeStart = Int(explicitValue as String)!;
-                  sourceAccountStartIndex = -1;
-                } else {
-                  sourceAccountStartIndex = index; index += 1;
-                }
-              case "#se":
-                if explicitValue.length > 0 {
-                  entry.rangeEnd = Int(explicitValue as String)!;
-                  sourceAccountEndIndex = -1;
-                } else {
-                  sourceAccountEndIndex = index; index += 1;
-                }
-              case "#tc":
-                if explicitValue.length > 0 {
-                  entry.bankCode = Int(explicitValue as String)!;
-                  targetBankCodeIndex = -1;
-                } else {
-                  targetBankCodeIndex = index; index += 1;
-                }
-              case "#ta":
-                if explicitValue.length > 0 {
-                  entry.account = Int(explicitValue as String)!;
-                  targetAccountIndex = -1;
-                } else {
-                  targetAccountIndex = index; index += 1;
-                }
-
-              default:
-                index += 1;
-                continue;
-              }
-            }
-
-            continue;
-          }
-
-          // Normal mapping line.
-          let parts: [String] = s.components(separatedBy: CharacterSet.whitespaces) ;
-          if sourceBankCodeIndex > -1 && sourceBankCodeIndex < parts.count {
-            sourceBankCode = parts[sourceBankCodeIndex] as NSString;
-          }
-          if sourceAccountIndex > -1 && sourceAccountIndex < parts.count {
-            entry.rangeStart = Int(parts[sourceAccountIndex])!;
-            entry.rangeEnd = entry.rangeStart;
-          }
-          if sourceAccountStartIndex > -1 && sourceAccountStartIndex < parts.count {
-            entry.rangeStart = Int(parts[sourceAccountStartIndex])!;
-          }
-          if sourceAccountEndIndex > -1 && sourceAccountEndIndex < parts.count {
-            entry.rangeEnd = Int(parts[sourceAccountEndIndex])!;
-          }
-          if targetBankCodeIndex > -1 && targetBankCodeIndex < parts.count {
-            entry.bankCode = Int(parts[targetBankCodeIndex])!;
-          }
-          if targetAccountIndex > -1 && targetAccountIndex < parts.count {
-            entry.account = Int(parts[targetAccountIndex])!;
-          }
-
-          // There can never be multiple IBAN rules for a given bank code as every bank code is
-          // covered by exactly one rule (or none at all).
-          // The source bank code can actually be a list of bank codes.
-          for bankCode in sourceBankCode.components(separatedBy: ",") {
-            let code = Int(bankCode)!;
-            var mappingTuple = _mappings[code];
-            if mappingTuple == nil {
-              mappingTuple = (rule, []);
-            }
-            mappingTuple!.details.append(entry);
-            _mappings[code] = mappingTuple;
-          }
+      for line in content.components(separatedBy: CharacterSet.newlines) {
+        var s: NSString = line as NSString;
+        s = s.trimmingCharacters(in: CharacterSet.whitespaces) as NSString;
+        if s.length == 0 || s.hasPrefix("//")  || s.hasPrefix("#"){
+          continue; // Ignore empty and comment lines.
         }
-      } catch let error as NSError {
-        fatalError("Unable to load bundle: \(error)")
+
+        if s.hasPrefix("[") {
+          // Format specifier.
+          entry = (0, 0, 0, 0);
+          sourceBankCodeIndex = -1;
+          sourceAccountIndex = -1;
+          sourceAccountStartIndex = -1;
+          sourceAccountEndIndex = -1;
+          targetBankCodeIndex = -1;
+          targetAccountIndex = -1;
+
+          s = s.substring(with: NSMakeRange(1, s.length - 2)) as NSString;
+          var index = 0;
+          for part in s.components(separatedBy: CharacterSet.whitespaces) {
+            let p = part as NSString;
+            if !p.hasPrefix("#") && p != "_" {
+              rule = Int(part)!;
+              continue;
+            }
+
+            if p == "_" {
+              index += 1;
+              continue;
+            }
+
+            let explicitValue = p.substring(from: 3) as NSString;
+            switch p.substring(to: 3) {
+            case "#sc":
+              if explicitValue.length > 0 {
+                sourceBankCode = (explicitValue as NSString);
+                sourceBankCodeIndex = -1;
+              } else {
+                sourceBankCodeIndex = index; index += 1;
+              }
+            case "#sa":
+              if explicitValue.length > 0 {
+                entry.rangeStart = Int((explicitValue as String))!;
+                entry.rangeEnd = entry.rangeStart;
+                sourceAccountIndex = -1;
+              } else {
+                sourceAccountIndex = index; index += 1;
+              }
+            case "#ss":
+              if explicitValue.length > 0 {
+                entry.rangeStart = Int(explicitValue as String)!;
+                sourceAccountStartIndex = -1;
+              } else {
+                sourceAccountStartIndex = index; index += 1;
+              }
+            case "#se":
+              if explicitValue.length > 0 {
+                entry.rangeEnd = Int(explicitValue as String)!;
+                sourceAccountEndIndex = -1;
+              } else {
+                sourceAccountEndIndex = index; index += 1;
+              }
+            case "#tc":
+              if explicitValue.length > 0 {
+                entry.bankCode = Int(explicitValue as String)!;
+                targetBankCodeIndex = -1;
+              } else {
+                targetBankCodeIndex = index; index += 1;
+              }
+            case "#ta":
+              if explicitValue.length > 0 {
+                entry.account = Int(explicitValue as String)!;
+                targetAccountIndex = -1;
+              } else {
+                targetAccountIndex = index; index += 1;
+              }
+
+            default:
+              index += 1;
+              continue;
+            }
+          }
+
+          continue;
+        }
+
+        // Normal mapping line.
+        let parts: [String] = s.components(separatedBy: CharacterSet.whitespaces) ;
+        if sourceBankCodeIndex > -1 && sourceBankCodeIndex < parts.count {
+          sourceBankCode = parts[sourceBankCodeIndex] as NSString;
+        }
+        if sourceAccountIndex > -1 && sourceAccountIndex < parts.count {
+          entry.rangeStart = Int(parts[sourceAccountIndex])!;
+          entry.rangeEnd = entry.rangeStart;
+        }
+        if sourceAccountStartIndex > -1 && sourceAccountStartIndex < parts.count {
+          entry.rangeStart = Int(parts[sourceAccountStartIndex])!;
+        }
+        if sourceAccountEndIndex > -1 && sourceAccountEndIndex < parts.count {
+          entry.rangeEnd = Int(parts[sourceAccountEndIndex])!;
+        }
+        if targetBankCodeIndex > -1 && targetBankCodeIndex < parts.count {
+          entry.bankCode = Int(parts[targetBankCodeIndex])!;
+        }
+        if targetAccountIndex > -1 && targetAccountIndex < parts.count {
+          entry.account = Int(parts[targetAccountIndex])!;
+        }
+
+        // There can never be multiple IBAN rules for a given bank code as every bank code is
+        // covered by exactly one rule (or none at all).
+        // The source bank code can actually be a list of bank codes.
+        for bankCode in sourceBankCode.components(separatedBy: ",") {
+          let code = Int(bankCode)!;
+          var mappingTuple = _mappings[code];
+          if mappingTuple == nil {
+            mappingTuple = (rule, []);
+          }
+          mappingTuple!.details.append(entry);
+          _mappings[code] = mappingTuple;
+        }
       }
     }
   }

@@ -178,81 +178,72 @@ internal class DERules : IBANRules {
     var zkaData: [Int: [String]] = [:]; // bank code + details.
 
     if FileManager.default.fileExists(atPath: path + "/fints_institute.csv") {
-      do {
-        let content = try NSString(contentsOfFile: path + "/fints_institute.csv", encoding: String.Encoding.utf8.rawValue)
+      guard let content = try? NSString(contentsOfFile: path + "/fints_institute.csv", encoding: String.Encoding.utf8.rawValue) else { /* TODO: Return an error code */ return }
 
-        var firstLineSkipped = false;
-        for line in content.components(separatedBy: CharacterSet.newlines) {
-          let s = (line as NSString).trimmingCharacters(in: CharacterSet.whitespaces);
-          if s.count == 0 || !firstLineSkipped {
-            firstLineSkipped = true;
-            continue;
-          }
-
-          let values = s.components(separatedBy: ";");
-          if values.count > 1 && values[1].count > 0 {
-            zkaData[Int(values[1])!] = values;
-          }
+      var firstLineSkipped = false;
+      for line in content.components(separatedBy: CharacterSet.newlines) {
+        let s = (line as NSString).trimmingCharacters(in: CharacterSet.whitespaces);
+        if s.count == 0 || !firstLineSkipped {
+          firstLineSkipped = true;
+          continue;
         }
-      } catch let error as NSError {
-        fatalError("Failed to load data \(error)")
+
+        let values = s.components(separatedBy: ";");
+        if values.count > 1 && values[1].count > 0 {
+          zkaData[Int(values[1])!] = values;
+        }
       }
     }
 
     if FileManager.default.fileExists(atPath: path + "/bank_codes.txt") {
-      do {
-        let content = try NSString(contentsOfFile: path + "/bank_codes.txt", encoding: String.Encoding.utf8.rawValue)
-        _institutes = [:];
-        _bicToBankCode = [:];
+      guard let content = try? NSString(contentsOfFile: path + "/bank_codes.txt", encoding: String.Encoding.utf8.rawValue) else  { /* TODO: Return an error code */ return }
+      _institutes = [:];
+      _bicToBankCode = [:];
 
-        // Extract bank code details.
-        for line in content.components(separatedBy: CharacterSet.newlines) {
-          let s: NSString = line as NSString;
-          if s.length < 168 {
-            continue; // Not a valid line.
-          }
-
-          // 1 for the primary institute or subsidiary, 2 for additional subsidiaries that
-          // should not take part in the payments. They share the same bank code anyway.
-          let mark = Int(line[line.index(line.startIndex, offsetBy: 8) ... line.index(line.startIndex, offsetBy: 8)]);
-          if mark == 2 {
-            continue;
-          }
-
-          var entry = BankEntry();
-
-          let bankCode = Int(line[line.startIndex..<line.index(line.startIndex, offsetBy: 8)])!;
-          entry.name = line[line.index(line.startIndex, offsetBy: 9) ..< line.index(line.startIndex, offsetBy: 67)]
-            .trimmingCharacters(in: CharacterSet.whitespaces);
-          entry.postalCode = String(line[line.index(line.startIndex, offsetBy: 67) ..< line.index(line.startIndex, offsetBy: 72)]);
-          entry.place = line[line.index(line.startIndex, offsetBy: 72) ..< line.index(line.startIndex, offsetBy: 107)]
-            .trimmingCharacters(in: CharacterSet.whitespaces);
-          entry.bic = String(line[line.index(line.startIndex, offsetBy: 139) ..< line.index(line.startIndex, offsetBy: 150)]);
-          entry.checksumMethod = String(line[line.index(line.startIndex, offsetBy: 150) ..< line.index(line.startIndex, offsetBy: 152)]);
-          entry.isDeleted = line[line.index(line.startIndex, offsetBy: 158)] == "D";
-          entry.replacement = Int(line[line.index(line.startIndex, offsetBy: 160) ..< line.index(line.startIndex, offsetBy: 168)])!;
-
-          if s.length > 168 {
-            // Extended bank code file.
-            entry.rule = Int(line[line.index(line.startIndex, offsetBy: 168) ..< line.index(line.startIndex, offsetBy: 172)])!;
-            entry.ruleVersion = Int(line[line.index(line.startIndex, offsetBy: 172) ..< line.index(line.startIndex, offsetBy: 174)])!;
-          }
-
-          // Look for additional info in the ZKA dataset. If an entry can be found for the given
-          // bank code remove it afterwards, so we get a list of entries at the end that are not
-          // in the bank code list.
-          if let zkaDetails = zkaData[bankCode] {
-            fillZKADetails(&entry, details: zkaDetails);
-            zkaData.removeValue(forKey: bankCode);
-          }
-
-          _institutes[bankCode] = entry;
-          _bicToBankCode[entry.bic] = bankCode; // Note: this is not unique! There can be more than one bank code for a BIC.
+      // Extract bank code details.
+      for line in content.components(separatedBy: CharacterSet.newlines) {
+        let s: NSString = line as NSString;
+        if s.length < 168 {
+          continue; // Not a valid line.
         }
-      } catch let error as NSError {
-        fatalError("Failed to load DERCodes.txt \(error)")
-      }
 
+        // 1 for the primary institute or subsidiary, 2 for additional subsidiaries that
+        // should not take part in the payments. They share the same bank code anyway.
+        let mark = Int(line[line.index(line.startIndex, offsetBy: 8) ... line.index(line.startIndex, offsetBy: 8)]);
+        if mark == 2 {
+          continue;
+        }
+
+        var entry = BankEntry();
+
+        let bankCode = Int(line[line.startIndex..<line.index(line.startIndex, offsetBy: 8)])!;
+        entry.name = line[line.index(line.startIndex, offsetBy: 9) ..< line.index(line.startIndex, offsetBy: 67)]
+          .trimmingCharacters(in: CharacterSet.whitespaces);
+        entry.postalCode = String(line[line.index(line.startIndex, offsetBy: 67) ..< line.index(line.startIndex, offsetBy: 72)]);
+        entry.place = line[line.index(line.startIndex, offsetBy: 72) ..< line.index(line.startIndex, offsetBy: 107)]
+          .trimmingCharacters(in: CharacterSet.whitespaces);
+        entry.bic = String(line[line.index(line.startIndex, offsetBy: 139) ..< line.index(line.startIndex, offsetBy: 150)]);
+        entry.checksumMethod = String(line[line.index(line.startIndex, offsetBy: 150) ..< line.index(line.startIndex, offsetBy: 152)]);
+        entry.isDeleted = line[line.index(line.startIndex, offsetBy: 158)] == "D";
+        entry.replacement = Int(line[line.index(line.startIndex, offsetBy: 160) ..< line.index(line.startIndex, offsetBy: 168)])!;
+
+        if s.length > 168 {
+          // Extended bank code file.
+          entry.rule = Int(line[line.index(line.startIndex, offsetBy: 168) ..< line.index(line.startIndex, offsetBy: 172)])!;
+          entry.ruleVersion = Int(line[line.index(line.startIndex, offsetBy: 172) ..< line.index(line.startIndex, offsetBy: 174)])!;
+        }
+
+        // Look for additional info in the ZKA dataset. If an entry can be found for the given
+        // bank code remove it afterwards, so we get a list of entries at the end that are not
+        // in the bank code list.
+        if let zkaDetails = zkaData[bankCode] {
+          fillZKADetails(&entry, details: zkaDetails);
+          zkaData.removeValue(forKey: bankCode);
+        }
+
+        _institutes[bankCode] = entry;
+        _bicToBankCode[entry.bic] = bankCode; // Note: this is not unique! There can be more than one bank code for a BIC.
+      }
 
       // Finally go over the remaining entries in the ZKA data and create institutes entries from them.
       // These may contain entries for deleted or otherwise invalid banks.
