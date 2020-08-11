@@ -514,7 +514,7 @@ open class IBANtools: NSObject {
   fileprivate class func mod97(_ s: String) -> Int {
     var result = 0;
     for c in s {
-      let i = Int(String(c))!;
+      guard let i = Int(String(c)) else { return 0 }
       result = (result * 10 + i) % 97;
     }
     return result;
